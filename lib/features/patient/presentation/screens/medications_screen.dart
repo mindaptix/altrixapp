@@ -43,13 +43,17 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
 
     setState(() => _submittingKeys.add(key));
     try {
-      await ref.read(medicationsProvider.notifier).logIntake(
+      await ref
+          .read(medicationsProvider.notifier)
+          .logIntake(
             scheduleId: scheduleId,
             doseTime: doseTime,
             status: status,
           );
       if (mounted) {
-        final label = status == MedicationDoseStatus.taken ? 'marked as taken' : 'marked as skipped';
+        final label = status == MedicationDoseStatus.taken
+            ? 'marked as taken'
+            : 'marked as skipped';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Dose at ${_formatDoseTime(doseTime)} $label.'),
@@ -84,7 +88,11 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Medications & Prescriptions'),
+        title: const Text(
+          'Medications & Prescriptions',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         backgroundColor: AppColors.background,
         elevation: 0,
         centerTitle: false,
@@ -127,8 +135,7 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
                     if (medications.isEmpty)
                       const EmptyStateCard(
                         title: 'No Active Medications',
-                        message:
-                            'You do not have any active medication schedules prescribed at this time.',
+                        message: 'You do not have any active medication schedules prescribed at this time.',
                         icon: Icons.medication_outlined,
                       )
                     else ...[
@@ -188,7 +195,9 @@ class _MedicationsSummaryBanner extends StatelessWidget {
       takenDoses += m.takenCount;
     }
     final pendingDoses = totalDoses - takenDoses;
-    final progress = totalDoses > 0 ? (takenDoses / totalDoses).clamp(0.0, 1.0) : 0.0;
+    final progress = totalDoses > 0
+        ? (takenDoses / totalDoses).clamp(0.0, 1.0)
+        : 0.0;
 
     return Container(
       padding: EdgeInsets.all(responsive.rz(18)),
@@ -247,7 +256,10 @@ class _MedicationsSummaryBanner extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: pendingDoses == 0 && totalDoses > 0
                       ? AppColors.mood5.withValues(alpha: 0.2)
@@ -376,7 +388,10 @@ class _MedicationScheduleCard extends StatelessWidget {
               SizedBox(height: responsive.rz(10)),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.background,
                   borderRadius: BorderRadius.circular(8),
@@ -425,8 +440,10 @@ class _MedicationScheduleCard extends StatelessWidget {
                   formattedTime: formatDoseTime(doseTime),
                   status: status,
                   isBusy: isBusy,
-                  onTake: () => onLogIntake(doseTime, MedicationDoseStatus.taken),
-                  onSkip: () => onLogIntake(doseTime, MedicationDoseStatus.skipped),
+                  onTake: () =>
+                      onLogIntake(doseTime, MedicationDoseStatus.taken),
+                  onSkip: () =>
+                      onLogIntake(doseTime, MedicationDoseStatus.skipped),
                 );
               }),
           ],
@@ -468,8 +485,8 @@ class _DoseTimeRow extends StatelessWidget {
           color: status == MedicationDoseStatus.taken
               ? AppColors.mood5.withValues(alpha: 0.08)
               : (status == MedicationDoseStatus.skipped
-                  ? Colors.grey.withValues(alpha: 0.06)
-                  : AppColors.background),
+                    ? Colors.grey.withValues(alpha: 0.06)
+                    : AppColors.background),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: status == MedicationDoseStatus.taken
@@ -483,14 +500,14 @@ class _DoseTimeRow extends StatelessWidget {
               status == MedicationDoseStatus.taken
                   ? Icons.check_circle_rounded
                   : (status == MedicationDoseStatus.skipped
-                      ? Icons.cancel_outlined
-                      : Icons.schedule_rounded),
+                        ? Icons.cancel_outlined
+                        : Icons.schedule_rounded),
               size: 18,
               color: status == MedicationDoseStatus.taken
                   ? AppColors.mood5
                   : (status == MedicationDoseStatus.skipped
-                      ? AppColors.textTertiary
-                      : AppColors.primary),
+                        ? AppColors.textTertiary
+                        : AppColors.primary),
             ),
             SizedBox(width: responsive.rz(8)),
             Text(
@@ -552,7 +569,10 @@ class _DoseTimeRow extends StatelessWidget {
                 style: TextButton.styleFrom(
                   visualDensity: VisualDensity.compact,
                   foregroundColor: AppColors.textSecondary,
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                 ),
                 child: const Text('Skip', style: TextStyle(fontSize: 12)),
               ),
@@ -560,13 +580,19 @@ class _DoseTimeRow extends StatelessWidget {
               ElevatedButton.icon(
                 onPressed: onTake,
                 icon: const Icon(Icons.check, size: 14),
-                label: const Text('Take', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                label: const Text(
+                  'Take',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                ),
                 style: ElevatedButton.styleFrom(
                   elevation: 0,
                   visualDensity: VisualDensity.compact,
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),

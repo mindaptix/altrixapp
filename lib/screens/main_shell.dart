@@ -80,10 +80,9 @@ class _MainShellState extends State<MainShell> {
       const ProfileScreen(),
     ];
 
-    final body = IndexedStack(
-      index: _index,
-      children: pages,
-    );
+    // Keep every tab mounted so scroll position, drafts, and loaded data remain
+    // stable while navigating. This feels faster than rebuilding a page per tap.
+    final body = IndexedStack(index: _index, children: pages);
 
     return ExitAppScope(
       child: InAppNotificationOverlay(
@@ -104,10 +103,7 @@ class _MainShellState extends State<MainShell> {
               : body,
           bottomNavigationBar: responsive.useNavigationRail
               ? null
-              : _AppBottomNav(
-                  index: _index,
-                  onChanged: _onTabSelected,
-                ),
+              : _AppBottomNav(index: _index, onChanged: _onTabSelected),
         ),
       ),
     );
@@ -182,7 +178,9 @@ class _AppBottomNav extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
-        border: Border(top: BorderSide(color: AppColors.border.withValues(alpha: 0.9))),
+        border: Border(
+          top: BorderSide(color: AppColors.border.withValues(alpha: 0.9)),
+        ),
         boxShadow: [
           BoxShadow(
             color: AppColors.navy.withValues(alpha: 0.04),
@@ -237,64 +235,81 @@ class _NavItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final responsive = context.responsive;
     final color = selected ? AppColors.primary : AppColors.iconMuted;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final duration = reduceMotion
+        ? Duration.zero
+        : const Duration(milliseconds: 220);
 
     return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 280),
-          curve: Curves.easeOutCubic,
-          padding: EdgeInsets.symmetric(vertical: responsive.rz(8)),
-          decoration: BoxDecoration(
-            color: selected ? AppColors.primaryMuted : Colors.transparent,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AnimatedScale(
-                scale: selected ? 1.08 : 1,
-                duration: const Duration(milliseconds: 280),
-                curve: Curves.easeOutBack,
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 220),
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
-                  transitionBuilder: (child, animation) {
-                    return FadeTransition(
-                      opacity: animation,
-                      child: ScaleTransition(
-                        scale: Tween<double>(begin: 0.85, end: 1).animate(
-                          CurvedAnimation(
-                            parent: animation,
-                            curve: Curves.easeOutBack,
+      child: Semantics(
+        button: true,
+        selected: selected,
+        label: '$label tab',
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: AnimatedContainer(
+              duration: duration,
+              curve: Curves.easeOutCubic,
+              padding: EdgeInsets.symmetric(vertical: responsive.rz(8)),
+              decoration: BoxDecoration(
+                color: selected ? AppColors.primaryMuted : Colors.transparent,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AnimatedScale(
+                    scale: selected ? 1.08 : 1,
+                    duration: duration,
+                    curve: Curves.easeOutBack,
+                    child: AnimatedSwitcher(
+                      duration: duration,
+                      switchInCurve: Curves.easeOutCubic,
+                      switchOutCurve: Curves.easeInCubic,
+                      transitionBuilder: (child, animation) {
+                        return FadeTransition(
+                          opacity: animation,
+                          child: ScaleTransition(
+                            scale: Tween<double>(begin: 0.85, end: 1).animate(
+                              CurvedAnimation(
+                                parent: animation,
+                                curve: Curves.easeOutBack,
+                              ),
+                            ),
+                            child: child,
                           ),
-                        ),
-                        child: child,
+                        );
+                      },
+                      child: Icon(
+                        selected ? icon : outlinedIcon,
+                        key: ValueKey(selected),
+                        color: color,
+                        size: responsive.bottomNavIconSize,
                       ),
-                    );
-                  },
-                  child: Icon(
-                    selected ? icon : outlinedIcon,
-                    key: ValueKey(selected),
-                    color: color,
-                    size: responsive.bottomNavIconSize,
+                    ),
                   ),
-                ),
+                  SizedBox(height: responsive.rz(4)),
+                  AnimatedDefaultTextStyle(
+                    duration: duration,
+                    curve: Curves.easeOutCubic,
+                    style: TextStyle(
+                      fontSize: responsive.bottomNavLabelSize,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      color: color,
+                    ),
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
-              SizedBox(height: responsive.rz(4)),
-              AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 280),
-                curve: Curves.easeOutCubic,
-                style: TextStyle(
-                  fontSize: responsive.bottomNavLabelSize,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                  color: color,
-                ),
-                child: Text(label),
-              ),
-            ],
+            ),
           ),
         ),
       ),

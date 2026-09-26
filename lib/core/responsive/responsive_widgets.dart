@@ -30,10 +30,7 @@ class ResponsiveCenter extends StatelessWidget {
 }
 
 class ResponsiveFormContainer extends StatelessWidget {
-  const ResponsiveFormContainer({
-    super.key,
-    required this.child,
-  });
+  const ResponsiveFormContainer({super.key, required this.child});
 
   final Widget child;
 
@@ -51,11 +48,7 @@ class ResponsiveFormContainer extends StatelessWidget {
 }
 
 class ResponsivePage extends StatelessWidget {
-  const ResponsivePage({
-    super.key,
-    required this.child,
-    this.padding,
-  });
+  const ResponsivePage({super.key, required this.child, this.padding});
 
   final Widget child;
   final EdgeInsets? padding;
@@ -64,10 +57,7 @@ class ResponsivePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final responsive = context.responsive;
     return ResponsiveCenter(
-      child: Padding(
-        padding: padding ?? responsive.pagePadding,
-        child: child,
-      ),
+      child: Padding(padding: padding ?? responsive.pagePadding, child: child),
     );
   }
 }
@@ -82,7 +72,7 @@ class ResponsiveAppBuilder extends StatelessWidget {
     final mediaQuery = MediaQuery.of(context);
     final clampedScaler = mediaQuery.textScaler.clamp(
       minScaleFactor: 0.9,
-      maxScaleFactor: 1.2,
+      maxScaleFactor: 1.6,
     );
 
     return MediaQuery(

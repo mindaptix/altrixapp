@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/responsive/responsive.dart';
 import '../../../../core/responsive/responsive_widgets.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../widgets/empty_state_card.dart';
@@ -176,6 +177,7 @@ class _AppointmentEditorScreenState
 
   @override
   Widget build(BuildContext context) {
+    final responsive = context.responsive;
     final query = _query;
     final slots = query == null
         ? null
@@ -196,7 +198,11 @@ class _AppointmentEditorScreenState
         body: SafeArea(
           child: ResponsiveFormContainer(
             child: ListView(
-              padding: const EdgeInsets.all(20),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: responsive.pagePadding.copyWith(
+                top: responsive.rz(16),
+                bottom: responsive.rz(32),
+              ),
               children: [
                 Text(
                   _rescheduling
@@ -291,8 +297,8 @@ class _AppointmentEditorScreenState
                       _requiresVideo
                           ? 'This appointment type automatically generates an in-app Zoom video room.'
                           : (_virtual
-                              ? 'A secure Zoom telehealth meeting link will be generated for in-app calling.'
-                              : 'Turn off for an in-person visit.'),
+                                ? 'A secure Zoom telehealth meeting link will be generated for in-app calling.'
+                                : 'Turn off for an in-person visit.'),
                     ),
                     value: _virtual || _requiresVideo,
                     onChanged: _saving || _requiresVideo
@@ -302,17 +308,25 @@ class _AppointmentEditorScreenState
                   if (_virtual || _requiresVideo) ...[
                     const SizedBox(height: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFF2D8CFF).withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: const Color(0xFF2D8CFF).withValues(alpha: 0.28),
+                          color: const Color(0xFF2D8CFF)
+                              .withValues(alpha: 0.28),
                         ),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.videocam_rounded, color: Color(0xFF2D8CFF), size: 20),
+                          const Icon(
+                            Icons.videocam_rounded,
+                            color: Color(0xFF2D8CFF),
+                            size: 20,
+                          ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Column(
