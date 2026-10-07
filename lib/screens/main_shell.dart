@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/notifications/notification_router.dart';
 import '../core/responsive/responsive.dart';
+import '../features/patient/presentation/providers/patient_providers.dart';
 import '../theme/app_colors.dart';
 import '../widgets/exit_app_scope.dart';
 import '../widgets/in_app_notification_overlay.dart';
@@ -11,16 +13,16 @@ import 'placeholder_screens.dart' show ProfileScreen;
 import 'schedule_screen.dart';
 import 'messages_screen.dart';
 
-class MainShell extends StatefulWidget {
+class MainShell extends ConsumerStatefulWidget {
   const MainShell({super.key, this.initialIndex = 0});
 
   final int initialIndex;
 
   @override
-  State<MainShell> createState() => _MainShellState();
+  ConsumerState<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends ConsumerState<MainShell> {
   late int _index = widget.initialIndex;
 
   @override
@@ -31,11 +33,16 @@ class _MainShellState extends State<MainShell> {
         setState(() => _index = tabIndex);
       }
     });
+    NotificationRouter.registerAppointmentRefresher(() {
+      ref.invalidate(appointmentsProvider);
+      ref.invalidate(dashboardProvider);
+    });
   }
 
   @override
   void dispose() {
     NotificationRouter.unregisterTabSwitcher();
+    NotificationRouter.unregisterAppointmentRefresher();
     super.dispose();
   }
 

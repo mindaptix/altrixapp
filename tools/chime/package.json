@@ -1,0 +1,1 @@
+{"private":true,"scripts":{"build":"esbuild entry.js --bundle --minify --main-fields=browser,module,main --format=iife --global-name=ChimeSDK --outfile=../../assets/telehealth/chime-sdk.js"},"dependencies":{"amazon-chime-sdk-js":"3.32.0"},"devDependencies":{"esbuild":"0.25.10"}}

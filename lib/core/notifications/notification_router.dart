@@ -26,6 +26,7 @@ class NotificationRouter {
 
   /// Optional callback registered by [MainShell] to switch bottom-nav tabs.
   static ValueSetter<int>? _switchTabCallback;
+  static VoidCallback? _refreshAppointmentsCallback;
 
   static void registerTabSwitcher(ValueSetter<int> callback) {
     _switchTabCallback = callback;
@@ -35,13 +36,44 @@ class NotificationRouter {
     _switchTabCallback = null;
   }
 
+  static void registerAppointmentRefresher(VoidCallback callback) {
+    _refreshAppointmentsCallback = callback;
+  }
+
+  static void unregisterAppointmentRefresher() {
+    _refreshAppointmentsCallback = null;
+  }
+
+  /// Refresh schedule data as soon as an appointment-related push arrives,
+  /// even if the patient does not tap the foreground banner.
+  static void handleReceived(Map<String, dynamic> data) {
+    final type = (data['type'] as String? ?? '').trim();
+    if (type == 'appointment_reminder' || type == 'telehealth_call') {
+      _refreshAppointmentsCallback?.call();
+    }
+  }
+
+  static bool _ready = false;
+  static Map<String, dynamic>? _pending;
+  static void markReady() {
+    _ready = true;
+    final pending = _pending;
+    _pending = null;
+    if (pending != null) handleTap(pending);
+  }
+
   /// Main entry point — handles a push notification [data] map.
   static void handleTap(Map<String, dynamic> data) {
     final type = (data['type'] as String? ?? '').trim();
     final nav = rootNavigatorKey.currentState;
-    if (nav == null) return;
+    if (nav == null || !_ready) {
+      _pending = Map<String, dynamic>.from(data);
+      return;
+    }
 
-    debugPrint('[NotificationRouter] handling type="$type" data=$data');
+    handleReceived(data);
+
+    debugPrint('[NotificationRouter] handling type="$type"');
 
     switch (type) {
       case 'medication_reminder':
@@ -75,14 +107,12 @@ class NotificationRouter {
         }
 
       case 'telehealth_call':
-        final sessionId = (data['sessionId'] as String? ?? '').trim();
-        final joinToken =
-            (data['joinToken'] as String? ?? sessionId).trim();
+        final joinToken = (data['joinToken'] as String? ?? '').trim();
         if (joinToken.isNotEmpty) {
           nav.push(
             MaterialPageRoute<void>(
               builder: (_) => TelehealthRoomScreen(joinToken: joinToken),
-              settings: RouteSettings(name: '/telehealth/$joinToken'),
+              settings: const RouteSettings(name: '/telehealth/waiting-room'),
             ),
           );
         }

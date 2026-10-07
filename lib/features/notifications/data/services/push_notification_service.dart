@@ -208,7 +208,7 @@ class PushNotificationService implements PushNotifications {
   }
 
   void _handleOpenedMessage(RemoteMessage message) {
-    debugPrint('[FCM] Opened from notification: ${message.data}');
+    debugPrint('[FCM] Opened from notification');
     NotificationRouter.handleTap(message.data);
   }
 }

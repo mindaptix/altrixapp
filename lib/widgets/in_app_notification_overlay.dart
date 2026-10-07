@@ -46,9 +46,10 @@ class _InAppNotificationOverlayState
       begin: const Offset(0, -1),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
-    _fade = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut),
-    );
+    _fade = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut));
 
     WidgetsBinding.instance.addPostFrameCallback((_) => _startListening());
   }
@@ -59,12 +60,13 @@ class _InAppNotificationOverlayState
   }
 
   void _onMessage(RemoteMessage message) {
-    final title = message.notification?.title ??
+    NotificationRouter.handleReceived(message.data);
+    final title =
+        message.notification?.title ??
         message.data['title'] as String? ??
         'New notification';
-    final body = message.notification?.body ??
-        message.data['body'] as String? ??
-        '';
+    final body =
+        message.notification?.body ?? message.data['body'] as String? ?? '';
 
     if (!mounted) return;
     setState(() {

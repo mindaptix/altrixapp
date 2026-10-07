@@ -10,6 +10,7 @@ class AuthInterceptor extends Interceptor {
   final String? Function() _readToken;
 
   static const _publicEndpoints = [
+    '/api/telehealth/join/',
     '/api/patient/login',
     '/api/patient/invite/preview',
     '/api/patient/invite/accept',

@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -72,7 +73,9 @@ class TelehealthPermissionService {
             ),
             backgroundColor: const Color(0xFF1E293B),
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             action: SnackBarAction(
               label: 'Grant',
               textColor: const Color(0xFF8AB4F8),
@@ -85,7 +88,7 @@ class TelehealthPermissionService {
       return false;
     } catch (e) {
       debugPrint('Error requesting camera/mic permissions: $e');
-      return true; // Avoid hard blocking if an unexpected OS error occurs
+      return false;
     }
   }
 
@@ -96,7 +99,11 @@ class TelehealthPermissionService {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(
           children: [
-            Icon(Icons.videocam_off_rounded, color: Color(0xFFEF4444), size: 24),
+            Icon(
+              Icons.videocam_off_rounded,
+              color: Color(0xFFEF4444),
+              size: 24,
+            ),
             SizedBox(width: 10),
             Text(
               'Permissions Needed',
@@ -111,19 +118,27 @@ class TelehealthPermissionService {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Not Now', style: TextStyle(fontWeight: FontWeight.w600)),
+            child: const Text(
+              'Not Now',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF4A3AFF),
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             onPressed: () {
               Navigator.of(ctx).pop();
               openAppSettings();
             },
-            child: const Text('Open Settings', style: TextStyle(fontWeight: FontWeight.w700)),
+            child: const Text(
+              'Open Settings',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),

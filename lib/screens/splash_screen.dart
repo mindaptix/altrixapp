@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/responsive/responsive.dart';
+import '../core/notifications/notification_router.dart';
 import '../features/auth/presentation/providers/auth_provider.dart';
 import '../features/auth/presentation/providers/auth_token_provider.dart';
 import '../features/auth/presentation/screens/sign_in_screen.dart';
@@ -88,10 +89,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         curve: const Interval(0.65, 0.9, curve: Curves.easeOut),
       ),
     );
-    _ringRotation = Tween<double>(begin: 0, end: 0.08).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
-
+    _ringRotation = Tween<double>(
+      begin: 0,
+      end: 0.08,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
     WidgetsBinding.instance.addPostFrameCallback((_) => _start());
   }
@@ -142,6 +143,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           return FadeTransition(opacity: animation, child: child);
         },
       ),
+    );
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => NotificationRouter.markReady(),
     );
   }
 
@@ -309,9 +313,8 @@ class _SplashGlowPainter extends CustomPainter {
 
     for (var i = 1; i <= 6; i++) {
       final expand = 1 + (progress * 0.15) + (pulse * 0.05);
-      ringPaint.color = const Color(0xFF6B63F0).withValues(
-        alpha: (0.06 + (i * 0.015)) * (0.7 + pulse * 0.3),
-      );
+      ringPaint.color = const Color(0xFF6B63F0)
+          .withValues(alpha: (0.06 + (i * 0.015)) * (0.7 + pulse * 0.3));
       canvas.drawCircle(center, 55.0 * i * expand, ringPaint);
     }
 
