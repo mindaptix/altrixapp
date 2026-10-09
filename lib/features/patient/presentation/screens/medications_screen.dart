@@ -6,6 +6,8 @@ import '../../../../core/responsive/responsive_widgets.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../widgets/empty_state_card.dart';
 import '../../data/models/medication_model.dart';
+import '../../data/models/personal_medication.dart';
+import '../widgets/personal_medication_tracker.dart';
 import '../providers/patient_providers.dart';
 
 class MedicationsScreen extends ConsumerStatefulWidget {
@@ -84,6 +86,7 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
   Widget build(BuildContext context) {
     final responsive = context.responsive;
     final medsAsync = ref.watch(medicationsProvider);
+    final personal = ref.watch(personalMedicationsProvider).valueOrNull ?? [];
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -97,19 +100,51 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
         elevation: 0,
         centerTitle: false,
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        tooltip: 'Add medication',
+        onPressed: () => showAddPersonalMedicationSheet(context),
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add),
+        label: const Text('Add medication'),
+      ),
       body: SafeArea(
         child: ResponsiveCenter(
           child: medsAsync.when(
-            loading: () => const Center(
-              child: InlineLoadingCard(label: 'Loading medications...'),
-            ),
+            loading: () => const _MedicationsSkeleton(),
             error: (error, _) => ListView(
-              padding: responsive.pagePadding,
+              padding: responsive.pagePadding.copyWith(
+                bottom: responsive.rz(100),
+              ),
               children: [
-                InlineErrorCard(
-                  message: friendlyErrorMessage(error),
-                  onRetry: () => ref.invalidate(medicationsProvider),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      children: [
+                        const Icon(
+                          Icons.medication_outlined,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          'Clinic prescriptions unavailable',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Please try again to load medications from your clinic.',
+                          textAlign: TextAlign.center,
+                        ),
+                        TextButton(
+                          onPressed: () => ref.invalidate(medicationsProvider),
+                          child: const Text('Retry prescriptions'),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
+                const PersonalMedicationTracker(),
               ],
             ),
             data: (medications) {
@@ -120,7 +155,7 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: responsive.pagePadding.copyWith(
                     top: responsive.rz(8),
-                    bottom: responsive.rz(32),
+                    bottom: responsive.rz(100),
                   ),
                   children: [
                     Text(
@@ -132,17 +167,27 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
                       ),
                     ),
                     SizedBox(height: responsive.rz(16)),
+                    if (medications.any((med) => med.isActive) ||
+                        personal.any((med) => med.active)) ...[
+                      _MedicationsSummaryBanner(
+                        medications: [
+                          ...medications.where((med) => med.isActive),
+                          ...personal
+                              .where((med) => med.active)
+                              .map((med) => med.schedule(DateTime.now())),
+                        ],
+                      ),
+                      SizedBox(height: responsive.rz(20)),
+                    ],
                     if (medications.isEmpty)
                       const EmptyStateCard(
-                        title: 'No Active Medications',
+                        title: 'No Clinic Prescriptions',
                         message: 'You do not have any active medication schedules prescribed at this time.',
                         icon: Icons.medication_outlined,
                       )
                     else ...[
-                      _MedicationsSummaryBanner(medications: medications),
-                      SizedBox(height: responsive.rz(20)),
                       Text(
-                        'TODAY\'S MEDICATIONS',
+                        'CLINIC PRESCRIPTIONS',
                         style: responsiveTextStyle(
                           context,
                           fontSize: 12,
@@ -168,6 +213,7 @@ class _MedicationsScreenState extends ConsumerState<MedicationsScreen> {
                         ),
                       ),
                     ],
+                    const PersonalMedicationTracker(),
                   ],
                 ),
               );
@@ -194,7 +240,11 @@ class _MedicationsSummaryBanner extends StatelessWidget {
       totalDoses += m.doseTimes.length;
       takenDoses += m.takenCount;
     }
-    final pendingDoses = totalDoses - takenDoses;
+    final pendingDoses = medications.fold<int>(
+      0,
+      (sum, med) => sum + med.pendingCount,
+    );
+    final skippedDoses = totalDoses - takenDoses - pendingDoses;
     final progress = totalDoses > 0
         ? (takenDoses / totalDoses).clamp(0.0, 1.0)
         : 0.0;
@@ -245,7 +295,7 @@ class _MedicationsSummaryBanner extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      '$takenDoses of $totalDoses doses taken today',
+                      '$takenDoses of $totalDoses doses taken today • $skippedDoses skipped',
                       style: responsiveTextStyle(
                         context,
                         fontSize: 13,
@@ -268,7 +318,7 @@ class _MedicationsSummaryBanner extends StatelessWidget {
                 ),
                 child: Text(
                   pendingDoses == 0 && totalDoses > 0
-                      ? 'All done!'
+                      ? (skippedDoses > 0 ? 'Logged' : 'All done!')
                       : '$pendingDoses pending',
                   style: responsiveTextStyle(
                     context,
@@ -283,6 +333,16 @@ class _MedicationsSummaryBanner extends StatelessWidget {
             ],
           ),
           SizedBox(height: responsive.rz(16)),
+          Text(
+            totalDoses > 0
+                ? '${(progress * 100).round()}% of scheduled doses taken'
+                : 'No scheduled doses today',
+            style: const TextStyle(
+              color: AppColors.textOnDarkMuted,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 8),
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: LinearProgressIndicator(
@@ -420,7 +480,12 @@ class _MedicationScheduleCard extends StatelessWidget {
               ),
             ),
             SizedBox(height: responsive.rz(8)),
-            if (schedule.doseTimes.isEmpty)
+            if (!schedule.isActive)
+              const Text(
+                'Inactive prescription',
+                style: TextStyle(color: AppColors.textSecondary),
+              )
+            else if (schedule.doseTimes.isEmpty)
               Text(
                 'No specific dose times scheduled today.',
                 style: responsiveTextStyle(
@@ -600,6 +665,121 @@ class _DoseTimeRow extends StatelessWidget {
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MedicationsSkeleton extends StatefulWidget {
+  const _MedicationsSkeleton();
+
+  @override
+  State<_MedicationsSkeleton> createState() => _MedicationsSkeletonState();
+}
+
+class _MedicationsSkeletonState extends State<_MedicationsSkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  Widget _bar(double width, double height) => Container(
+    width: width,
+    height: height,
+    decoration: BoxDecoration(
+      color: AppColors.border,
+      borderRadius: BorderRadius.circular(8),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final responsive = context.responsive;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    return Semantics(
+      label: 'Loading medications and prescriptions',
+      child: ExcludeSemantics(
+        child: AnimatedBuilder(
+          animation: _pulse,
+          builder: (context, child) => Opacity(
+            opacity: reduceMotion ? 1 : 0.45 + _pulse.value * 0.5,
+            child: child,
+          ),
+          child: ListView(
+            padding: responsive.pagePadding.copyWith(
+              top: responsive.rz(8),
+              bottom: responsive.rz(100),
+            ),
+            children: [
+              _bar(double.infinity, 14),
+              const SizedBox(height: 8),
+              _bar(180, 14),
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _bar(160, 18),
+                    const SizedBox(height: 20),
+                    _bar(double.infinity, 12),
+                    const SizedBox(height: 16),
+                    _bar(200, 14),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              _bar(170, 12),
+              const SizedBox(height: 12),
+              for (var i = 0; i < 3; i++)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    border: Border.all(color: AppColors.border),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          _bar(44, 44),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _bar(double.infinity, 18),
+                                const SizedBox(height: 8),
+                                _bar(100, 12),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      _bar(150, 14),
+                      const SizedBox(height: 16),
+                      _bar(double.infinity, 40),
+                    ],
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

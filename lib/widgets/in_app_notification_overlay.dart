@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/notifications/notification_router.dart';
 import '../../features/notifications/presentation/providers/push_notification_provider.dart';
 import '../../theme/app_colors.dart';
+import '../../features/patient/presentation/providers/patient_providers.dart';
 
 /// Wraps the app body and shows a floating in-app banner when a push
 /// notification arrives while the app is in the foreground.
@@ -61,6 +62,7 @@ class _InAppNotificationOverlayState
 
   void _onMessage(RemoteMessage message) {
     NotificationRouter.handleReceived(message.data);
+    ref.invalidate(dashboardProvider);
     final title =
         message.notification?.title ??
         message.data['title'] as String? ??

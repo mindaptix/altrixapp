@@ -812,7 +812,7 @@ class DashboardItem {
       'isRead',
       'is_read',
       'read',
-    ], fallback: true);
+    ], fallback: json['readAt'] != null || json['read_at'] != null);
     return DashboardItem(
       title: readString(json, ['title', 'subject', 'name', 'label']),
       body: readString(json, [
@@ -831,7 +831,9 @@ class DashboardItem {
         'lastMessageAt',
         'last_message_at',
       ]),
-      isUnread: readBool(json, ['isUnread', 'is_unread', 'unread']) || !isRead,
+      isUnread: const ['isUnread', 'is_unread', 'unread'].any(json.containsKey)
+          ? readBool(json, ['isUnread', 'is_unread', 'unread'])
+          : !isRead,
     );
   }
 
@@ -982,9 +984,9 @@ class DashboardModel {
           readInt(statsMap, ['unreadMessages', 'unread_messages']) ??
           0,
       unreadNotifications:
-          readInt(payload, ['unreadNotifications', 'unread_notifications']) ??
-          readInt(statsMap, ['unreadNotifications', 'unread_notifications']) ??
-          notifications.where((item) => item.isUnread).length,
+          readInt(payload, ['unreadNotificationCount', 'unreadNotifications', 'unread_notifications', 'unread_notification_count', 'notificationUnreadCount']) ??
+          readInt(statsMap, ['unreadNotificationCount', 'unreadNotifications', 'unread_notifications', 'unread_notification_count']) ??
+          [...notifications, ...effectiveReminders].where((item) => item.isUnread).length,
       pendingForms:
           readInt(payload, ['pendingForms', 'formsDue', 'forms_due']) ??
           readInt(statsMap, ['pendingForms', 'formsDue', 'forms_due']) ??

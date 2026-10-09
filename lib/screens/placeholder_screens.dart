@@ -9,6 +9,7 @@ import '../features/help/presentation/screens/help_center_screen.dart';
 import '../features/notifications/presentation/screens/notifications_screen.dart';
 import '../features/patient/presentation/screens/forms_screen.dart';
 import '../features/profile/presentation/screens/edit_profile_screen.dart';
+import '../features/profile/presentation/screens/account_portal_screen.dart';
 import '../features/profile/presentation/screens/privacy_security_screen.dart';
 import '../features/resources/presentation/screens/resources_screen.dart';
 import '../theme/app_colors.dart';
@@ -1722,6 +1723,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       );
                     },
                   ),
+                  for (final section in AccountSection.values)
+                    _ProfileMenuTile(
+                      icon: section.icon,
+                      title: section.label,
+                      subtitle: switch (section) {
+                        AccountSection.insurance => 'Coverage, benefits and insurance card',
+                        AccountSection.documents => 'Photo ID and consent forms',
+                        AccountSection.billing => 'Balance, payments and statements',
+                      },
+                      gradient: const [Color(0xFFEDE9FE), Color(0xFFD8D2FF)],
+                      iconColor: AppColors.primary,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => AccountPortalScreen(initialSection: section),
+                        ),
+                      ),
+                    ),
                   _ProfileMenuTile(
                     icon: Icons.notifications_none_rounded,
                     title: 'Notifications',

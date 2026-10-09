@@ -10,6 +10,7 @@ import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../patient/data/models/patient_models.dart';
 import '../../../patient/presentation/providers/patient_providers.dart';
 import '../providers/push_notification_provider.dart';
+import '../providers/notification_activity_provider.dart';
 
 /// Persisted notification preferences model.
 class NotificationPreferences {
@@ -128,7 +129,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
   String _selectedFilter = 'All';
-  final Set<String> _readItemKeys = {};
+
 
   @override
   void initState() {
@@ -180,6 +181,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
     Responsive responsive,
     AsyncValue<DashboardModel> dashboardAsync,
   ) {
+    final readItemKeys = ref.watch(readNotificationKeysProvider);
     return dashboardAsync.when(
       loading: () => const InlineLoadingCard(label: 'Loading notifications...'),
       error: (error, _) => Padding(
@@ -195,7 +197,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
         final allItems = <DashboardItem>[...notifications, ...reminders];
 
         final filteredItems = allItems.where((item) {
-          final isLocallyRead = _readItemKeys.contains(item.displayText);
+          final isLocallyRead = readItemKeys.contains(notificationItemKey(item));
           final isEffectiveUnread = item.isUnread && !isLocallyRead;
 
           switch (_selectedFilter) {
@@ -219,7 +221,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
         }).toList();
 
         final unreadCount = allItems.where((item) {
-          return item.isUnread && !_readItemKeys.contains(item.displayText);
+          return item.isUnread && !readItemKeys.contains(notificationItemKey(item));
         }).length;
 
         return ResponsiveCenter(
@@ -263,11 +265,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
                   if (unreadCount > 0)
                     TextButton.icon(
                       onPressed: () {
-                        setState(() {
-                          for (final item in allItems) {
-                            _readItemKeys.add(item.displayText);
-                          }
-                        });
+                        ref.read(readNotificationKeysProvider.notifier).markAllRead(allItems);
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('All notifications marked as read'),
@@ -329,13 +327,13 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
                 )
               else
                 ...filteredItems.map((item) {
-                  final isRead = !item.isUnread || _readItemKeys.contains(item.displayText);
+                  final isRead = !item.isUnread || readItemKeys.contains(notificationItemKey(item));
                   return _NotificationItemCard(
                     item: item,
                     isRead: isRead,
                     onTap: () {
                       if (!isRead) {
-                        setState(() => _readItemKeys.add(item.displayText));
+                        ref.read(readNotificationKeysProvider.notifier).markRead(item);
                       }
                     },
                   );

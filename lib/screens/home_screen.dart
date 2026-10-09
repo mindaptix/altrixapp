@@ -6,12 +6,14 @@ import '../core/responsive/responsive.dart';
 import '../core/responsive/responsive_widgets.dart';
 import '../features/auth/presentation/providers/auth_provider.dart';
 import '../features/notifications/presentation/screens/notifications_screen.dart';
+import '../features/notifications/presentation/providers/notification_activity_provider.dart';
 import '../features/patient/data/utils/appointment_utils.dart';
 import '../features/patient/data/models/patient_models.dart';
 import '../features/patient/presentation/providers/patient_providers.dart';
 import '../features/patient/presentation/screens/medications_screen.dart';
 import '../features/resources/presentation/screens/resources_screen.dart';
 import '../theme/app_colors.dart';
+import '../features/coping/presentation/coping_tools_screen.dart';
 import '../widgets/appointment_actions.dart';
 import '../widgets/empty_state_card.dart';
 import '../widgets/app_buttons.dart';
@@ -26,7 +28,24 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) ref.invalidate(dashboardProvider);
+  }
+
   String get _greeting {
     final tz = ref.watch(usaTimezoneProvider);
     final hour = UsaTimezoneService.nowInUs(timezone: tz).hour;
@@ -60,7 +79,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     required String journal,
   }) async {
     try {
-      await ref.read(patientRepositoryProvider).createCheckIn(
+      await ref
+          .read(patientRepositoryProvider)
+          .createCheckIn(
             mood: mood,
             stress: stress,
             sleep: sleep,
@@ -126,7 +147,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       onAvatarTap: widget.onNavigateToTab != null
                           ? () => widget.onNavigateToTab!(3)
                           : null,
-                      unreadNotifications: dashboardAsync.valueOrNull?.unreadNotifications ?? 0,
+                      unreadNotifications:
+                          ref.watch(unreadNotificationCountProvider),
                     ),
                     SizedBox(height: responsive.rz(22)),
                     appointmentsAsync.when(
@@ -143,7 +165,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             if (next != null)
                               _NextSessionCard(
                                 appointment: next,
-                                onJoin: () => openAppointmentJoin(context, next),
+                                onJoin: () =>
+                                    openAppointmentJoin(context, next),
                                 onDirections: () =>
                                     openAppointmentDirections(context, next),
                               )
@@ -160,6 +183,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     SizedBox(height: responsive.rz(14)),
                     _QuickActions(
+                      onCoping: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const CopingToolsScreen(),
+                        ),
+                      ),
                       onCheckIn: _openCheckInSheet,
                       onMessages: () => widget.onNavigateToTab?.call(2),
                       onMedications: () {
@@ -178,9 +206,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       },
                     ),
                     SizedBox(height: responsive.rz(22)),
-                    _CheckInCard(
-                      onCheckIn: _openCheckInSheet,
-                    ),
+                    _CheckInCard(onCheckIn: _openCheckInSheet),
                     SizedBox(height: responsive.rz(16)),
                     _DashboardSummaryCard(
                       dashboardAsync: dashboardAsync,
@@ -235,10 +261,7 @@ class _HomeBackground extends StatelessWidget {
 }
 
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({
-    required this.title,
-    this.subtitle,
-  });
+  const _SectionHeader({required this.title, this.subtitle});
 
   final String title;
   final String? subtitle;
@@ -417,9 +440,7 @@ class _TodayDateChip extends StatelessWidget {
           ],
         ),
         borderRadius: BorderRadius.circular(responsive.rz(18)),
-        border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.14),
-        ),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.14)),
         boxShadow: [
           BoxShadow(
             color: AppColors.primary.withValues(alpha: 0.08),
@@ -464,7 +485,7 @@ class _TodayDateChip extends StatelessWidget {
                   month.substring(0, 3).toUpperCase(),
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.9),
-                    fontSize: responsive.rz(9),
+                    fontSize: responsive.rz(11),
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.6,
                     height: 1.1,
@@ -584,10 +605,7 @@ class _ProfileAvatar extends StatelessWidget {
     );
 
     if (onTap != null) {
-      return GestureDetector(
-        onTap: onTap,
-        child: avatar,
-      );
+      return GestureDetector(onTap: onTap, child: avatar);
     }
     return avatar;
   }
@@ -609,9 +627,7 @@ class _NotificationButton extends StatelessWidget {
       child: InkWell(
         onTap: () {
           Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const NotificationsScreen(),
-            ),
+            MaterialPageRoute(builder: (_) => const NotificationsScreen()),
           );
         },
         borderRadius: BorderRadius.circular(responsive.rz(18)),
@@ -683,8 +699,8 @@ class _NotificationButton extends StatelessWidget {
                   ),
                 ),
                 Positioned(
-                  right: responsive.rz(10),
-                  top: responsive.rz(9),
+                  right: responsive.rz(-2),
+                  top: responsive.rz(-2),
                   child: Container(
                     padding: EdgeInsets.symmetric(
                       horizontal: unreadCount > 9
@@ -692,8 +708,8 @@ class _NotificationButton extends StatelessWidget {
                           : responsive.rz(0),
                     ),
                     constraints: BoxConstraints(
-                      minWidth: responsive.rz(18),
-                      minHeight: responsive.rz(18),
+                      minWidth: responsive.rz(23),
+                      minHeight: responsive.rz(23),
                     ),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
@@ -715,11 +731,12 @@ class _NotificationButton extends StatelessWidget {
                         ),
                       ],
                     ),
+                    key: const ValueKey('home-notification-badge'),
                     child: Text(
                       unreadCount > 9 ? '9+' : '$unreadCount',
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: responsive.rz(9),
+                        fontSize: responsive.rz(11),
                         fontWeight: FontWeight.w800,
                         height: 1,
                       ),
@@ -777,9 +794,10 @@ class _NextSessionSkeletonCardState extends State<_NextSessionSkeletonCard>
       vsync: this,
       duration: const Duration(milliseconds: 1100),
     )..repeat(reverse: true);
-    _animation = Tween<double>(begin: 0.35, end: 0.75).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _animation = Tween<double>(
+      begin: 0.35,
+      end: 0.75,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -820,11 +838,7 @@ class _NextSessionSkeletonCardState extends State<_NextSessionSkeletonCard>
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                Color(0xFF12103A),
-                Color(0xFF1C1858),
-                Color(0xFF221A6A),
-              ],
+              colors: [Color(0xFF12103A), Color(0xFF1C1858), Color(0xFF221A6A)],
             ),
             boxShadow: [
               BoxShadow(
@@ -971,10 +985,14 @@ class _NextSessionCard extends StatelessWidget {
                                     vertical: 5,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: AppColors.primary.withValues(alpha: 0.22),
+                                    color: AppColors.primary.withValues(
+                                      alpha: 0.22,
+                                    ),
                                     borderRadius: BorderRadius.circular(20),
                                     border: Border.all(
-                                      color: AppColors.primarySoft.withValues(alpha: 0.35),
+                                      color: AppColors.primarySoft.withValues(
+                                        alpha: 0.35,
+                                      ),
                                     ),
                                   ),
                                   child: const Row(
@@ -1049,8 +1067,8 @@ class _NextSessionCard extends StatelessWidget {
                                         child: Text(
                                           appointment.isVirtual
                                               ? (appointment.duration.isNotEmpty
-                                                  ? 'Video duration: ${appointment.duration}'
-                                                  : 'Video duration: 50 min')
+                                                    ? 'Video duration: ${appointment.duration}'
+                                                    : 'Video duration: 50 min')
                                               : '${appointment.visitType}  ·  ${appointment.duration}',
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
@@ -1215,7 +1233,11 @@ class _CalendarClockPainter extends CustomPainter {
     stroke.style = PaintingStyle.stroke;
 
     final clockCenter = Offset(size.width - 18, size.height - 18);
-    canvas.drawCircle(clockCenter, 16, Paint()..color = const Color(0xFF161445));
+    canvas.drawCircle(
+      clockCenter,
+      16,
+      Paint()..color = const Color(0xFF161445),
+    );
     canvas.drawCircle(clockCenter, 16, stroke);
     canvas.drawLine(clockCenter, clockCenter + const Offset(0, -8), stroke);
     canvas.drawLine(clockCenter, clockCenter + const Offset(8, 4), stroke);
@@ -1231,12 +1253,14 @@ class _QuickActions extends StatelessWidget {
     required this.onMessages,
     required this.onMedications,
     required this.onResources,
+    required this.onCoping,
   });
 
   final VoidCallback onCheckIn;
   final VoidCallback onMessages;
   final VoidCallback onMedications;
   final VoidCallback onResources;
+  final VoidCallback onCoping;
 
   @override
   Widget build(BuildContext context) {
@@ -1264,6 +1288,13 @@ class _QuickActions extends StatelessWidget {
         onMedications,
       ),
       (
+        Icons.spa_outlined,
+        'Coping tools',
+        const [Color(0xFFEDE9FE), Color(0xFFD8D2FF)],
+        AppColors.primary,
+        onCoping,
+      ),
+      (
         Icons.menu_book_outlined,
         'Resources',
         const [Color(0xFFE8FBF0), Color(0xFFC9F0D8)],
@@ -1275,14 +1306,16 @@ class _QuickActions extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final gap = responsive.rz(10);
-        final itemWidth =
-            ((constraints.maxWidth - gap * 3) / 4).clamp(68.0, 100.0);
+        final itemWidth = ((constraints.maxWidth - gap * 3) / 4).clamp(
+          68.0,
+          100.0,
+        );
 
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
           children: [
             for (var i = 0; i < actions.length; i++) ...[
-              if (i > 0) SizedBox(width: gap),
               _QuickAction(
                 width: itemWidth,
                 icon: actions[i].$1,
@@ -1370,9 +1403,7 @@ class _QuickAction extends StatelessWidget {
 }
 
 class _CheckInCard extends StatelessWidget {
-  const _CheckInCard({
-    required this.onCheckIn,
-  });
+  const _CheckInCard({required this.onCheckIn});
 
   final VoidCallback onCheckIn;
 
@@ -1391,10 +1422,7 @@ class _CheckInCard extends StatelessWidget {
                 height: responsive.rz(40),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [
-                      AppColors.primaryMuted,
-                      AppColors.primaryWash,
-                    ],
+                    colors: [AppColors.primaryMuted, AppColors.primaryWash],
                   ),
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -1464,10 +1492,7 @@ class _CheckInCard extends StatelessWidget {
             ],
           ),
           SizedBox(height: responsive.rz(16)),
-          SoftButton(
-            label: 'Check in now',
-            onPressed: onCheckIn,
-          ),
+          SoftButton(label: 'Check in now', onPressed: onCheckIn),
         ],
       ),
     );
@@ -1535,7 +1560,8 @@ class _TodaysWellnessSheet extends StatefulWidget {
     required int stress,
     required int sleep,
     required String journal,
-  }) onSubmit;
+  })
+  onSubmit;
 
   @override
   State<_TodaysWellnessSheet> createState() => _TodaysWellnessSheetState();
@@ -1797,9 +1823,7 @@ class _WellnessSliderTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: AppColors.border.withValues(alpha: 0.6),
-        ),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.6)),
       ),
       child: Column(
         children: [
@@ -1808,10 +1832,7 @@ class _WellnessSliderTile extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Text(
-                    emoji,
-                    style: TextStyle(fontSize: responsive.rz(18)),
-                  ),
+                  Text(emoji, style: TextStyle(fontSize: responsive.rz(18))),
                   SizedBox(width: responsive.rz(8)),
                   Text(
                     label,
@@ -1909,9 +1930,7 @@ class _DashboardSummaryCard extends StatelessWidget {
               subtitle: 'Wellness overview from your care team',
             ),
             SizedBox(height: responsive.rz(12)),
-            InlineErrorCard(
-              message: friendlyErrorMessage(error),
-            ),
+            InlineErrorCard(message: friendlyErrorMessage(error)),
           ],
         ),
         data: (dashboard) {
@@ -1950,7 +1969,7 @@ class _DashboardSummaryCard extends StatelessWidget {
                     value: '${dashboard.weeklyCheckInsCompleted}',
                   ),
                   _DashboardStatChip(
-                    icon: Icons.local_fire_department_rounded,
+                    icon: Icons.local_fire_department_outlined,
                     label: 'Streak',
                     value: '${dashboard.checkInStreak}',
                   ),
@@ -2123,7 +2142,13 @@ class _DashboardStatChip extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(icon, size: responsive.rz(18), color: AppColors.primary),
+              Icon(
+                icon,
+                size: responsive.rz(22),
+                color: label == 'Streak'
+                    ? const Color(0xFFE77948)
+                    : AppColors.primary,
+              ),
               SizedBox(width: responsive.rz(8)),
               Expanded(
                 child: Column(
@@ -2256,10 +2281,7 @@ class _DashboardUpdateTile extends StatelessWidget {
 }
 
 class _WellnessMetricTile extends StatelessWidget {
-  const _WellnessMetricTile({
-    required this.label,
-    required this.value,
-  });
+  const _WellnessMetricTile({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -2268,25 +2290,46 @@ class _WellnessMetricTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final responsive = context.responsive;
 
+    final (icon, color, background) = switch (label) {
+      'Mood' => (
+        Icons.sentiment_satisfied_alt_outlined,
+        const Color(0xFF6B3FA0),
+        const Color(0xFFF3EDFC),
+      ),
+      'Stress' => (
+        Icons.spa_outlined,
+        const Color(0xFFCD9B22),
+        const Color(0xFFFFF8E1),
+      ),
+      'Sleep' => (
+        Icons.bedtime_outlined,
+        const Color(0xFF138B80),
+        const Color(0xFFE2F4F2),
+      ),
+      _ => (Icons.insights_outlined, AppColors.primary, AppColors.background),
+    };
+
     return Container(
       padding: EdgeInsets.symmetric(
         horizontal: responsive.rz(10),
         vertical: responsive.rz(12),
       ),
       decoration: BoxDecoration(
-        color: AppColors.background,
+        color: background,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.border),
       ),
       child: Column(
         children: [
+          Icon(icon, color: color, size: responsive.rz(25)),
+          SizedBox(height: responsive.rz(8)),
           Text(
             value,
             style: responsiveTextStyle(
               context,
               fontSize: 18,
               fontWeight: FontWeight.w800,
-              color: AppColors.primary,
+              color: color,
             ),
           ),
           SizedBox(height: responsive.rz(2)),
@@ -2500,9 +2543,8 @@ class _ProgressCard extends StatelessWidget {
                 ),
               ),
             ),
-            error: (error, _) => InlineErrorCard(
-              message: friendlyErrorMessage(error),
-            ),
+            error: (error, _) =>
+                InlineErrorCard(message: friendlyErrorMessage(error)),
             data: (progress) {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2619,10 +2661,7 @@ class _ProgressCard extends StatelessWidget {
 }
 
 class _DailyMoodGraph extends StatefulWidget {
-  const _DailyMoodGraph({
-    required this.moodTrend,
-    this.averageMood,
-  });
+  const _DailyMoodGraph({required this.moodTrend, this.averageMood});
 
   final List<int> moodTrend;
   final num? averageMood;
@@ -2828,7 +2867,9 @@ class _DailyMoodGraphState extends State<_DailyMoodGraph> {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      selectedDay == 'Today' ? "Today's Mood" : '$selectedDay Mood',
+                      selectedDay == 'Today'
+                          ? "Today's Mood"
+                          : '$selectedDay Mood',
                       style: responsiveTextStyle(
                         context,
                         fontSize: 12.5,
@@ -2980,8 +3021,10 @@ class _DailyMoodGraphState extends State<_DailyMoodGraph> {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final maxBarHeight = constraints.maxHeight;
-                final barHeight =
-                    (maxBarHeight * normalized).clamp(8.0, maxBarHeight);
+                final barHeight = (maxBarHeight * normalized).clamp(
+                  8.0,
+                  maxBarHeight,
+                );
                 return Stack(
                   alignment: Alignment.bottomCenter,
                   children: [
@@ -2991,8 +3034,7 @@ class _DailyMoodGraphState extends State<_DailyMoodGraph> {
                       height: maxBarHeight,
                       decoration: BoxDecoration(
                         color: const Color(0xFFF1F5F9),
-                        borderRadius:
-                            BorderRadius.circular(responsive.rz(7.0)),
+                        borderRadius: BorderRadius.circular(responsive.rz(7.0)),
                       ),
                     ),
 
@@ -3002,8 +3044,7 @@ class _DailyMoodGraphState extends State<_DailyMoodGraph> {
                       height: barHeight,
                       decoration: BoxDecoration(
                         gradient: gradient,
-                        borderRadius:
-                            BorderRadius.circular(responsive.rz(7.0)),
+                        borderRadius: BorderRadius.circular(responsive.rz(7.0)),
                         boxShadow: isSelected
                             ? [
                                 BoxShadow(
@@ -3047,13 +3088,14 @@ class _DailyMoodGraphState extends State<_DailyMoodGraph> {
               softWrap: false,
               style: TextStyle(
                 fontSize: responsive.rz(isToday || isSelected ? 9.5 : 9.0),
-                fontWeight:
-                    isToday || isSelected ? FontWeight.w800 : FontWeight.w600,
+                fontWeight: isToday || isSelected
+                    ? FontWeight.w800
+                    : FontWeight.w600,
                 color: isSelected
                     ? color
                     : (isToday
-                        ? AppColors.textPrimary
-                        : AppColors.textSecondary),
+                          ? AppColors.textPrimary
+                          : AppColors.textSecondary),
               ),
             ),
           ),
@@ -3069,10 +3111,7 @@ class _DailyMoodGraphState extends State<_DailyMoodGraph> {
         Container(
           width: 7,
           height: 7,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 4),
         Text(

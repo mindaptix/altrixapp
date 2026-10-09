@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/notifications/notification_router.dart';
+import '../features/chatbot/presentation/widgets/floating_chatbot.dart';
+import '../features/auth/presentation/providers/auth_provider.dart';
 import '../core/responsive/responsive.dart';
 import '../features/patient/presentation/providers/patient_providers.dart';
 import '../theme/app_colors.dart';
@@ -91,26 +93,36 @@ class _MainShellState extends ConsumerState<MainShell> {
     // stable while navigating. This feels faster than rebuilding a page per tap.
     final body = IndexedStack(index: _index, children: pages);
 
-    return ExitAppScope(
-      child: InAppNotificationOverlay(
-        child: Scaffold(
-          backgroundColor: AppColors.background,
-          body: responsive.useNavigationRail
-              ? Row(
-                  children: [
-                    _AppNavigationRail(
-                      index: _index,
-                      extended: responsive.width >= 1024,
-                      onChanged: _onTabSelected,
-                    ),
-                    const VerticalDivider(width: 1, color: AppColors.border),
-                    Expanded(child: body),
-                  ],
-                )
-              : body,
-          bottomNavigationBar: responsive.useNavigationRail
-              ? null
-              : _AppBottomNav(index: _index, onChanged: _onTabSelected),
+    return Overlay.wrap(
+      child: FloatingChatbot(
+        key: ValueKey(
+          ref.watch(authProvider.select((state) => state.user?.id)),
+        ),
+        child: ExitAppScope(
+          child: InAppNotificationOverlay(
+            child: Scaffold(
+              backgroundColor: AppColors.background,
+              body: responsive.useNavigationRail
+                  ? Row(
+                      children: [
+                        _AppNavigationRail(
+                          index: _index,
+                          extended: responsive.width >= 1024,
+                          onChanged: _onTabSelected,
+                        ),
+                        const VerticalDivider(
+                          width: 1,
+                          color: AppColors.border,
+                        ),
+                        Expanded(child: body),
+                      ],
+                    )
+                  : body,
+              bottomNavigationBar: responsive.useNavigationRail
+                  ? null
+                  : _AppBottomNav(index: _index, onChanged: _onTabSelected),
+            ),
+          ),
         ),
       ),
     );

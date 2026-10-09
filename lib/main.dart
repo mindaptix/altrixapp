@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'core/firebase/firebase_bootstrap.dart';
 import 'core/navigation/app_navigator.dart';
 import 'core/responsive/responsive_widgets.dart';
-import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/auth/presentation/providers/auth_providers.dart';
 import 'features/notifications/presentation/providers/push_notification_provider.dart';
 import 'screens/splash_screen.dart';
@@ -20,16 +19,14 @@ Future<void> main() async {
   final container = ProviderContainer(
     overrides: [
       sharedPreferencesProvider.overrideWithValue(prefs),
-      pushNotificationServiceProvider.overrideWithValue(pushNotificationService),
+      pushNotificationServiceProvider.overrideWithValue(
+        pushNotificationService,
+      ),
     ],
   );
 
-
   runApp(
-    UncontrolledProviderScope(
-      container: container,
-      child: const AltrixApp(),
-    ),
+    UncontrolledProviderScope(container: container, child: const AltrixApp()),
   );
 }
 

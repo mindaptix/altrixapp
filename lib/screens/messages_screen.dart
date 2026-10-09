@@ -38,16 +38,6 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openCareChat(context),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.chat_bubble_rounded, size: 20),
-        label: const Text(
-          'Start Chat',
-          style: TextStyle(fontWeight: FontWeight.w700),
-        ),
-      ),
       body: SafeArea(
         child: ResponsiveCenter(
           child: RefreshIndicator(
@@ -163,7 +153,9 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                         if (conversations.isNotEmpty) ...[
                           for (final conversation in effectiveConversations)
                             Padding(
-                              padding: EdgeInsets.only(bottom: responsive.rz(10)),
+                              padding: EdgeInsets.only(
+                                bottom: responsive.rz(10),
+                              ),
                               child: ConversationTile(
                                 conversation: conversation,
                                 // We don't have real clinician presence on the list
@@ -175,8 +167,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                         ] else ...[
                           const EmptyStateCard(
                             title: 'No chats',
-                            message:
-                                'No chats available. When your care team or clinician sends you a message, it will appear here.',
+                            message: 'No chats available. When your care team or clinician sends you a message, it will appear here.',
                             icon: Icons.chat_bubble_outline_rounded,
                           ),
                         ],
@@ -194,9 +185,9 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
 
   void _openThread(BuildContext context, ConversationModel conversation) {
     // Mark as locally-read immediately (zeroes badge before API refresh)
-    ref.read(localReadConversationsProvider.notifier).update(
-      (s) => {...s, conversation.id},
-    );
+    ref
+        .read(localReadConversationsProvider.notifier)
+        .update((s) => {...s, conversation.id});
     Navigator.of(context)
         .push(
           MaterialPageRoute(
@@ -209,29 +200,6 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
         )
         // Refresh the conversations list when the user comes back so
         // the unread badge reflects real server state.
-        .then((_) => ref.invalidate(conversationsProvider));
-  }
-
-  void _openCareChat(BuildContext context) {
-    final conversations = ref.read(conversationsProvider).valueOrNull;
-    final existingConvo = (conversations != null && conversations.isNotEmpty)
-        ? conversations.first
-        : null;
-    if (existingConvo != null) {
-      ref.read(localReadConversationsProvider.notifier).update(
-        (s) => {...s, existingConvo.id},
-      );
-    }
-    Navigator.of(context)
-        .push(
-          MaterialPageRoute(
-            builder: (_) => ConversationDetailScreen(
-              conversationId: existingConvo?.id ?? '',
-              title: existingConvo?.effectiveName ?? 'Care Team',
-              participantName: existingConvo?.effectiveName ?? 'Care Team',
-            ),
-          ),
-        )
         .then((_) => ref.invalidate(conversationsProvider));
   }
 }
