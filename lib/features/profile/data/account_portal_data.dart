@@ -21,7 +21,10 @@ class AccountPortalData {
   factory AccountPortalData.fromProfile(Map<String, dynamic> response) {
     final payload = unwrapApiPayload(response);
     final patient = _map(
-      payload['client'] ?? payload['patient'] ?? payload['user'],
+      payload['client'] ??
+          payload['patient'] ??
+          payload['user'] ??
+          payload['profile'],
     );
     final insurance = _map(payload['insurance'] ?? patient['insurance']);
     final primary = _map(insurance['primary']);
@@ -31,11 +34,24 @@ class AccountPortalData {
       insurance,
       prefix: 'secondary',
     );
+    // The clinician web app stores the three core insurance values directly
+    // on some client records instead of inside an `insurance` object. Accept
+    // that API shape as well so records created on the web are visible in the
+    // patient app.
+    final patientPrimary = InsurancePlan.fromJson(patient);
+    final payloadPrimary = InsurancePlan.fromJson(payload);
+    final resolvedPrimary = primary.isNotEmpty
+        ? InsurancePlan.fromJson(primary)
+        : flatPrimary.carrier.isNotEmpty
+        ? flatPrimary
+        : patientPrimary.carrier.isNotEmpty
+        ? patientPrimary
+        : payloadPrimary.carrier.isNotEmpty
+        ? payloadPrimary
+        : null;
     final documents = payload['documents'] ?? patient['documents'];
     return AccountPortalData(
-      primary: primary.isNotEmpty
-          ? InsurancePlan.fromJson(primary)
-          : (flatPrimary.carrier.isNotEmpty ? flatPrimary : null),
+      primary: resolvedPrimary,
       secondary: secondary.isNotEmpty
           ? InsurancePlan.fromJson(secondary)
           : (flatSecondary.carrier.isNotEmpty &&
@@ -82,10 +98,37 @@ class InsurancePlan {
     }
 
     return InsurancePlan(
-      carrier: field('carrier', ['payer', 'name']),
-      memberId: field('memberId', ['member_id']),
+      carrier: field('carrier', [
+        'payer',
+        'name',
+        'plan',
+        'payerPlan',
+        'payerName',
+        'insurancePayer',
+        'insurancePlan',
+        'insuranceCarrier',
+        'insuranceProvider',
+        'primaryInsurancePayer',
+        'primaryInsuranceCarrier',
+      ]),
+      memberId: field('memberId', [
+        'memberID',
+        'member_id',
+        'policyNumber',
+        'policy_number',
+        'insuranceMemberId',
+        'insuranceMemberID',
+        'primaryInsuranceMemberId',
+      ]),
       groupNumber: prefix.isEmpty
-          ? readString(json, ['groupNumber', 'group', 'group_number'])
+          ? readString(json, [
+              'groupNumber',
+              'group',
+              'group_number',
+              'insuranceGroupNumber',
+              'insuranceGroup',
+              'primaryInsuranceGroupNumber',
+            ])
           : readString(json, ['${prefix}Group', '${prefix}GroupNumber']),
       copay: field('copay', []),
       deductible: field('deductible', []),

@@ -110,6 +110,40 @@ void main() {
       expect(find.text('Live Secure Chat'), findsOneWidget);
       // Verify conversation tile for Dr. Sarah Jenkins is displayed
       expect(find.text('Dr. Sarah Jenkins'), findsOneWidget);
+      expect(find.text('Conversations'), findsOneWidget);
+      expect(find.text('Unread'), findsOneWidget);
+    });
+
+    testWidgets('MessagesScreen shows zero conversation counts in one row', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(320, 844));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      const testUser = User(
+        id: 'patient-empty',
+        name: 'Vishal Sharma',
+        email: 'vishal@example.com',
+        phone: '1234567890',
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authProvider.overrideWith(() => _FakeAuthNotifier(testUser)),
+            conversationsProvider.overrideWith((ref) async => []),
+          ],
+          child: const MaterialApp(home: MessagesScreen()),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('0'), findsNWidgets(2));
+      expect(find.text('Conversations'), findsOneWidget);
+      expect(find.text('Unread'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets(

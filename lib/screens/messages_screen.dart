@@ -414,7 +414,8 @@ class _MessagesStatsRow extends StatelessWidget {
       children: [
         Expanded(
           child: _StatCard(
-            label: '$totalThreads conversations',
+            value: '$totalThreads',
+            label: 'Conversations',
             icon: Icons.forum_rounded,
             highlight: false,
           ),
@@ -422,7 +423,8 @@ class _MessagesStatsRow extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: _StatCard(
-            label: unreadTotal > 0 ? '$unreadTotal unread' : 'All caught up',
+            value: '$unreadTotal',
+            label: 'Unread',
             icon: unreadTotal > 0
                 ? Icons.mark_email_unread_rounded
                 : Icons.done_all_rounded,
@@ -436,11 +438,13 @@ class _MessagesStatsRow extends StatelessWidget {
 
 class _StatCard extends StatelessWidget {
   const _StatCard({
+    required this.value,
     required this.label,
     required this.icon,
     required this.highlight,
   });
 
+  final String value;
   final String label;
   final IconData icon;
   final bool highlight;
@@ -467,12 +471,35 @@ class _StatCard extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: highlight ? AppColors.primary : AppColors.textPrimary,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: highlight
+                          ? AppColors.primary
+                          : AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: highlight
+                          ? AppColors.primary
+                          : AppColors.textPrimary,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

@@ -16,6 +16,7 @@ class UnauthorizedInterceptor extends Interceptor {
 
   bool _isPublicPath(String path) {
     return path.contains(ApiEndpoints.patientLogin) ||
+        path.contains(ApiEndpoints.patientLogout) ||
         path.contains(ApiEndpoints.patientInviteAccept) ||
         path.contains(ApiEndpoints.patientInvitePreview) ||
         path.contains(ApiEndpoints.patientForgotPassword) ||
@@ -26,6 +27,7 @@ class UnauthorizedInterceptor extends Interceptor {
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
     if (err.response?.statusCode == 401 &&
+        err.requestOptions.extra['skipUnauthorizedLogout'] != true &&
         !_isPublicPath(err.requestOptions.path)) {
       unawaited(
         _ref.read(authProvider.notifier).signOut().then((_) {

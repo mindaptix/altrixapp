@@ -154,6 +154,22 @@ void main() {
     expect(nested.billing.history.single.status, 'pending');
   });
 
+  test('reads insurance saved as flat clinician web client fields', () {
+    final account = AccountPortalData.fromProfile({
+      'data': {
+        'client': {
+          'insurancePayer': 'Blue health care',
+          'insuranceMemberId': '123456789',
+          'insuranceGroupNumber': '23',
+        },
+      },
+    });
+
+    expect(account.primary?.carrier, 'Blue health care');
+    expect(account.primary?.memberId, '123456789');
+    expect(account.primary?.groupNumber, '23');
+  });
+
   Future<void> pumpPortal(
     WidgetTester tester, {
     AccountSection section = AccountSection.insurance,
