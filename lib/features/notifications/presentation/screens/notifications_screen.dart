@@ -1,124 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/responsive/responsive.dart';
 import '../../../../core/responsive/responsive_widgets.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../widgets/empty_state_card.dart';
-import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../patient/data/models/patient_models.dart';
 import '../../../patient/presentation/providers/patient_providers.dart';
+import '../providers/notification_preferences_provider.dart';
 import '../providers/push_notification_provider.dart';
-
-/// Persisted notification preferences model.
-class NotificationPreferences {
-  const NotificationPreferences({
-    this.pushEnabled = true,
-    this.appointmentReminders = true,
-    this.careTeamMessages = true,
-    this.dailyCheckInReminders = true,
-    this.medicationReminders = true,
-    this.clinicAnnouncements = false,
-    this.emailDigest = true,
-    this.smsAlerts = true,
-    this.quietHoursEnabled = false,
-  });
-
-  final bool pushEnabled;
-  final bool appointmentReminders;
-  final bool careTeamMessages;
-  final bool dailyCheckInReminders;
-  final bool medicationReminders;
-  final bool clinicAnnouncements;
-  final bool emailDigest;
-  final bool smsAlerts;
-  final bool quietHoursEnabled;
-
-  NotificationPreferences copyWith({
-    bool? pushEnabled,
-    bool? appointmentReminders,
-    bool? careTeamMessages,
-    bool? dailyCheckInReminders,
-    bool? medicationReminders,
-    bool? clinicAnnouncements,
-    bool? emailDigest,
-    bool? smsAlerts,
-    bool? quietHoursEnabled,
-  }) {
-    return NotificationPreferences(
-      pushEnabled: pushEnabled ?? this.pushEnabled,
-      appointmentReminders: appointmentReminders ?? this.appointmentReminders,
-      careTeamMessages: careTeamMessages ?? this.careTeamMessages,
-      dailyCheckInReminders:
-          dailyCheckInReminders ?? this.dailyCheckInReminders,
-      medicationReminders: medicationReminders ?? this.medicationReminders,
-      clinicAnnouncements: clinicAnnouncements ?? this.clinicAnnouncements,
-      emailDigest: emailDigest ?? this.emailDigest,
-      smsAlerts: smsAlerts ?? this.smsAlerts,
-      quietHoursEnabled: quietHoursEnabled ?? this.quietHoursEnabled,
-    );
-  }
-
-  static const _keyPush = 'notif_pref_push';
-  static const _keyAppt = 'notif_pref_appt';
-  static const _keyCare = 'notif_pref_care';
-  static const _keyCheckIn = 'notif_pref_checkin';
-  static const _keyMeds = 'notif_pref_meds';
-  static const _keyClinic = 'notif_pref_clinic';
-  static const _keyEmail = 'notif_pref_email';
-  static const _keySms = 'notif_pref_sms';
-  static const _keyQuiet = 'notif_pref_quiet';
-
-  static NotificationPreferences fromPrefs(SharedPreferences prefs) {
-    return NotificationPreferences(
-      pushEnabled: prefs.getBool(_keyPush) ?? true,
-      appointmentReminders: prefs.getBool(_keyAppt) ?? true,
-      careTeamMessages: prefs.getBool(_keyCare) ?? true,
-      dailyCheckInReminders: prefs.getBool(_keyCheckIn) ?? true,
-      medicationReminders: prefs.getBool(_keyMeds) ?? true,
-      clinicAnnouncements: prefs.getBool(_keyClinic) ?? false,
-      emailDigest: prefs.getBool(_keyEmail) ?? true,
-      smsAlerts: prefs.getBool(_keySms) ?? true,
-      quietHoursEnabled: prefs.getBool(_keyQuiet) ?? false,
-    );
-  }
-
-  Future<void> save(SharedPreferences prefs) async {
-    await prefs.setBool(_keyPush, pushEnabled);
-    await prefs.setBool(_keyAppt, appointmentReminders);
-    await prefs.setBool(_keyCare, careTeamMessages);
-    await prefs.setBool(_keyCheckIn, dailyCheckInReminders);
-    await prefs.setBool(_keyMeds, medicationReminders);
-    await prefs.setBool(_keyClinic, clinicAnnouncements);
-    await prefs.setBool(_keyEmail, emailDigest);
-    await prefs.setBool(_keySms, smsAlerts);
-    await prefs.setBool(_keyQuiet, quietHoursEnabled);
-  }
-}
-
-final notificationPreferencesProvider =
-    NotifierProvider<NotificationPreferencesNotifier, NotificationPreferences>(
-      NotificationPreferencesNotifier.new,
-    );
-
-class NotificationPreferencesNotifier
-    extends Notifier<NotificationPreferences> {
-  @override
-  NotificationPreferences build() {
-    final prefs = ref.watch(sharedPreferencesProvider);
-    return NotificationPreferences.fromPrefs(prefs);
-  }
-
-  Future<void> update(
-    NotificationPreferences Function(NotificationPreferences current) fn,
-  ) async {
-    final updated = fn(state);
-    state = updated;
-    final prefs = ref.read(sharedPreferencesProvider);
-    await updated.save(prefs);
-  }
-}
 
 /// Main Notifications Screen with Alerts Feed and Preference Settings.
 class NotificationsScreen extends ConsumerStatefulWidget {
