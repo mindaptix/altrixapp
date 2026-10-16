@@ -60,4 +60,29 @@ void main() {
     expect(appointment.endTimeLabel, '4:39 PM');
     expect(appointment.duration, '50 min');
   });
+
+  test('AppointmentModel parses patient booking, decline and client join fields', () {
+    final appointment = AppointmentModel.fromJson({
+      'id': 'appt-declined',
+      'type': 'Individual Therapy',
+      'date': '2026-10-25',
+      'startTime': '10:00',
+      'status': 'cancelled',
+      'patientBooked': false,
+      'declineReason': 'Doctor unavailable. Please select another slot.',
+      'isVirtual': true,
+      'clientJoinUrl': 'https://altrixs.com/telehealth/join/client-token',
+    });
+
+    expect(appointment.patientBooked, isFalse);
+    expect(appointment.isDeclinedByDoctor, isTrue);
+    expect(
+      appointment.declineReason,
+      'Doctor unavailable. Please select another slot.',
+    );
+    expect(
+      appointment.effectiveJoinUrl,
+      'https://altrixs.com/telehealth/join/client-token',
+    );
+  });
 }

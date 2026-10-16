@@ -20,10 +20,18 @@ class ApiEndpoints {
   static const patientMe = '/api/patient/me';
   static const patientAvatar = '/api/patient/avatar';
   static const patientDashboard = '/api/patient/dashboard';
+  static const patientNotifications = '/api/patient/notifications';
+  static const patientNotificationsReadAll =
+      '/api/patient/notifications/read-all';
+  static String patientNotificationRead(String id) =>
+      '/api/patient/notifications/$id/read';
+  static String patientNotification(String id) =>
+      '/api/patient/notifications/$id';
 
   // Appointments
   static const patientAppointments = '/api/patient/appointments';
-  static String patientAppointment(String id) => '/api/patient/appointments/$id';
+  static String patientAppointment(String id) =>
+      '/api/patient/appointments/$id';
   static String patientAppointmentCancel(String id) =>
       '/api/patient/appointments/$id/cancel';
   static String patientAppointmentReschedule(String id) =>
@@ -53,6 +61,7 @@ class ApiEndpoints {
   static String patientForm(String id) => '/api/patient/forms/$id';
 
   // Telehealth (join token auth)
-  static String telehealthJoin(String joinToken) => '/api/telehealth/join/$joinToken';
+  static String telehealthJoin(String joinToken) =>
+      '/api/telehealth/join/$joinToken';
   static const telehealthSignal = '/api/telehealth/signal';
 }

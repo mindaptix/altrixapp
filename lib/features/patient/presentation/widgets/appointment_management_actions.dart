@@ -57,8 +57,15 @@ class _CancelAppointmentDialog extends ConsumerStatefulWidget {
 
 class _CancelAppointmentDialogState
     extends ConsumerState<_CancelAppointmentDialog> {
+  final _reasonController = TextEditingController();
   bool _saving = false;
   String? _error;
+
+  @override
+  void dispose() {
+    _reasonController.dispose();
+    super.dispose();
+  }
 
   Future<void> _cancel() async {
     if (_saving) return;
@@ -69,7 +76,10 @@ class _CancelAppointmentDialogState
     try {
       await ref
           .read(patientRepositoryProvider)
-          .cancelAppointment(widget.appointment.id);
+          .cancelAppointment(
+            widget.appointment.id,
+            reason: _reasonController.text,
+          );
       if (!mounted) return;
       ref.invalidate(appointmentsProvider);
       ref.invalidate(dashboardProvider);
@@ -106,6 +116,18 @@ class _CancelAppointmentDialogState
             const SizedBox(height: 12),
             const Text(
               'This will remove the visit from your upcoming schedule.',
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _reasonController,
+              enabled: !_saving,
+              maxLines: 3,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(
+                labelText: 'Reason (optional)',
+                hintText: 'Tell your care team why you need to cancel',
+                border: OutlineInputBorder(),
+              ),
             ),
             if (_error != null)
               Padding(

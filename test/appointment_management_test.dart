@@ -190,7 +190,13 @@ Future<void> mount(
       overrides: [
         patientRepositoryProvider.overrideWithValue(api.repository),
         clockProvider.overrideWithValue(
-          () => DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day, 8, 0),
+          () => DateTime(
+            DateTime.now().year,
+            DateTime.now().month,
+            DateTime.now().day,
+            8,
+            0,
+          ),
         ),
       ],
       child: const MaterialApp(home: ScheduleScreen()),
@@ -246,6 +252,48 @@ void main() {
       }).canManage,
       isFalse,
     );
+  });
+
+  testWidgets('doctor-declined appointment shows reason and rebook action', (
+    tester,
+  ) async {
+    final api = AppointmentApi()..seed(status: 'cancelled');
+    api.appointments[0]['patientBooked'] = false;
+    api.appointments[0]['declineReason'] =
+        'Doctor unavailable. Please select another slot.';
+
+    await mount(tester, api);
+
+    await tester.scrollUntilVisible(
+      find.text('Declined by Doctor'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('Declined by Doctor'), findsOneWidget);
+    expect(
+      find.text('Doctor unavailable. Please select another slot.'),
+      findsOneWidget,
+    );
+    expect(find.text('Rebook Slot'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('ended virtual appointment does not show Join visit', (
+    tester,
+  ) async {
+    final api = AppointmentApi()..seed();
+    final yesterday = DateTime.now().subtract(const Duration(days: 1));
+    api.appointments[0]
+      ..['date'] = yesterday.toIso8601String().split('T').first
+      ..['startTime'] = '10:00'
+      ..['endTime'] = '10:50'
+      ..['isVirtual'] = true
+      ..['joinUrl'] = 'https://example.com/ended-meeting';
+
+    await mount(tester, api);
+
+    expect(find.text('Join visit'), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets(
@@ -365,7 +413,7 @@ void main() {
       final request = api.requests.singleWhere(
         (r) => r.path.endsWith('/reschedule'),
       );
-      expect(request.method, 'PATCH');
+      expect(request.method, 'POST');
       expect(
         request.path,
         '/api/patient/appointments/appointment-1/reschedule',
@@ -411,6 +459,11 @@ void main() {
         api.requests.where((r) => r.path.endsWith('/availability')),
         isEmpty,
       );
+      await tester.scrollUntilVisible(
+        find.text('Request reschedule'),
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
       expect(
         tester
             .widget<FilledButton>(
@@ -428,6 +481,11 @@ void main() {
     final api = AppointmentApi()..failSlots = true;
     await mount(tester, api, size: const Size(320, 700));
     await startBooking(tester);
+    await tester.scrollUntilVisible(
+      find.text('Availability temporarily unavailable'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
     expect(find.text('Availability temporarily unavailable'), findsOneWidget);
     api.failSlots = false;
     await tapText(tester, 'Try again');

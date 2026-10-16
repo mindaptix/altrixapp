@@ -488,7 +488,13 @@ class _AppointmentCard extends StatelessWidget {
     final accentColor = appointment.isVirtual
         ? AppColors.primary
         : AppColors.mood5;
-    final statusStyle = _statusStyle(appointment.status);
+    final statusStyle = appointment.isDeclinedByDoctor
+        ? const _StatusStyle(
+            label: 'Declined by Doctor',
+            background: Color(0xFFFFE4E6),
+            foreground: Color(0xFFBE123C),
+          )
+        : _statusStyle(appointment.status);
 
     return Material(
       color: Colors.transparent,
@@ -605,7 +611,52 @@ class _AppointmentCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                if (appointment.note.isNotEmpty) ...[
+                if (appointment.isDeclinedByDoctor) ...[
+                  SizedBox(height: responsive.rz(12)),
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(responsive.rz(12)),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF1F2),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFFFCCD5)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Reason from your doctor',
+                          style: TextStyle(
+                            color: Color(0xFF9F1239),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        SizedBox(height: responsive.rz(5)),
+                        Text(
+                          appointment.declineReason,
+                          style: responsiveTextStyle(
+                            context,
+                            fontSize: 12,
+                            color: const Color(0xFF881337),
+                          ),
+                        ),
+                        SizedBox(height: responsive.rz(10)),
+                        OutlinedButton.icon(
+                          onPressed: () => openAppointmentEditor(context),
+                          icon: const Icon(Icons.event_repeat_rounded, size: 18),
+                          label: const Text('Rebook Slot'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFFBE123C),
+                            side: const BorderSide(color: Color(0xFFFDA4AF)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                if (appointment.note.isNotEmpty &&
+                    !appointment.isDeclinedByDoctor) ...[
                   SizedBox(height: responsive.rz(12)),
                   Container(
                     width: double.infinity,
@@ -624,7 +675,9 @@ class _AppointmentCard extends StatelessWidget {
                     ),
                   ),
                 ],
-                if (appointment.isVirtual && appointment.hasJoinLink) ...[
+                if (appointment.isVirtual &&
+                    appointment.hasJoinLink &&
+                    appointment.canJoinMeeting()) ...[
                   SizedBox(height: responsive.rz(14)),
                   SizedBox(
                     width: double.infinity,

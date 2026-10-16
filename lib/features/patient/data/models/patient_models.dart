@@ -120,6 +120,8 @@ class AppointmentModel {
         'telehealthToken',
       ]),
       joinUrl: readString(json, [
+        'clientJoinUrl',
+        'client_join_url',
         'joinUrl',
         'join_url',
         'meetingUrl',
@@ -134,10 +136,7 @@ class AppointmentModel {
       note: readString(json, ['note', 'notes', 'reason']),
       sortDateTime: sortDateTime,
       endDateTime:
-          endSortDateTime ??
-          (sortDateTime != null
-              ? sortDateTime.add(const Duration(minutes: 50))
-              : null),
+          endSortDateTime ?? sortDateTime?.add(const Duration(minutes: 50)),
       raw: json,
     );
   }
@@ -190,6 +189,19 @@ class AppointmentModel {
 
   bool get hasJoinLink =>
       effectiveJoinUrl.trim().isNotEmpty || joinToken.trim().isNotEmpty;
+
+  bool get patientBooked => readBool(raw, ['patientBooked', 'patient_booked']);
+
+  String get declineReason =>
+      readString(raw, ['declineReason', 'decline_reason']);
+
+  bool get isDeclinedByDoctor =>
+      const {
+        'cancelled',
+        'canceled',
+        'declined',
+      }.contains(status.toLowerCase()) &&
+      declineReason.isNotEmpty;
 
   String get clinicianId => readString(
     raw,
@@ -754,7 +766,8 @@ class MessageModel {
       createdAt: parsedCreatedAt.isNotEmpty
           ? parsedCreatedAt
           : DateTime.now().toIso8601String(),
-      isRead: json['readAt'] != null ||
+      isRead:
+          json['readAt'] != null ||
           json['read_at'] != null ||
           readBool(json, ['isRead', 'is_read', 'read'], fallback: false),
       raw: json,
@@ -844,6 +857,117 @@ class DashboardItem {
 
   /// Returns time formatted in 12-hour format with AM/PM (e.g. `2:30 PM`).
   String get formattedTime => UsaTimezoneService.formatTimeString(time);
+}
+
+class PatientNotificationModel {
+  const PatientNotificationModel({
+    required this.id,
+    required this.type,
+    required this.title,
+    required this.body,
+    required this.isRead,
+    required this.createdAt,
+    required this.data,
+    this.readAt,
+  });
+
+  final String id;
+  final String type;
+  final String title;
+  final String body;
+  final bool isRead;
+  final String createdAt;
+  final String? readAt;
+  final Map<String, dynamic> data;
+
+  factory PatientNotificationModel.fromJson(Map<String, dynamic> json) {
+    final rawData = json['data'];
+    return PatientNotificationModel(
+      id: readString(json, ['id', '_id']),
+      type: readString(json, ['type', 'notificationType']),
+      title: readString(json, ['title', 'subject']),
+      body: readString(json, ['body', 'message', 'text']),
+      isRead: readBool(json, [
+        'isRead',
+        'is_read',
+        'read',
+      ], fallback: json['readAt'] != null || json['read_at'] != null),
+      createdAt: readString(json, ['createdAt', 'created_at', 'time']),
+      readAt: readString(json, ['readAt', 'read_at']).trim().isEmpty
+          ? null
+          : readString(json, ['readAt', 'read_at']),
+      data: rawData is Map
+          ? rawData.map((key, value) => MapEntry(key.toString(), value))
+          : const {},
+    );
+  }
+
+  PatientNotificationModel copyWith({bool? isRead, String? readAt}) {
+    return PatientNotificationModel(
+      id: id,
+      type: type,
+      title: title,
+      body: body,
+      isRead: isRead ?? this.isRead,
+      createdAt: createdAt,
+      readAt: readAt ?? this.readAt,
+      data: data,
+    );
+  }
+
+  String get formattedTime => UsaTimezoneService.formatTimeString(createdAt);
+}
+
+class PatientNotificationPage {
+  const PatientNotificationPage({
+    required this.notifications,
+    required this.page,
+    required this.limit,
+    required this.total,
+    required this.hasMore,
+    required this.unreadCount,
+  });
+
+  final List<PatientNotificationModel> notifications;
+  final int page;
+  final int limit;
+  final int total;
+  final bool hasMore;
+  final int unreadCount;
+
+  factory PatientNotificationPage.fromJson(Map<String, dynamic> json) {
+    final rootData = json['data'];
+    final payload = rootData is Map<String, dynamic> ? rootData : json;
+    final paginationValue = payload['pagination'];
+    final pagination = paginationValue is Map<String, dynamic>
+        ? paginationValue
+        : payload;
+    final rawNotifications =
+        payload['notifications'] ??
+        json['notifications'] ??
+        (rootData is List ? rootData : const []);
+    final notifications = rawNotifications is List
+        ? rawNotifications
+              .whereType<Map>()
+              .map(
+                (item) => PatientNotificationModel.fromJson(
+                  item.map((key, value) => MapEntry(key.toString(), value)),
+                ),
+              )
+              .toList()
+        : <PatientNotificationModel>[];
+    return PatientNotificationPage(
+      notifications: notifications,
+      page: readInt(pagination, ['page']) ?? 1,
+      limit: readInt(pagination, ['limit']) ?? notifications.length,
+      total: readInt(pagination, ['total']) ?? notifications.length,
+      hasMore: readBool(pagination, ['hasMore', 'has_more']),
+      unreadCount:
+          readInt(payload, ['unreadCount', 'unread_count']) ??
+          readInt(json, ['unreadCount', 'unread_count']) ??
+          notifications.where((item) => !item.isRead).length,
+    );
+  }
 }
 
 class DashboardModel {
@@ -984,9 +1108,23 @@ class DashboardModel {
           readInt(statsMap, ['unreadMessages', 'unread_messages']) ??
           0,
       unreadNotifications:
-          readInt(payload, ['unreadNotificationCount', 'unreadNotifications', 'unread_notifications', 'unread_notification_count', 'notificationUnreadCount']) ??
-          readInt(statsMap, ['unreadNotificationCount', 'unreadNotifications', 'unread_notifications', 'unread_notification_count']) ??
-          [...notifications, ...effectiveReminders].where((item) => item.isUnread).length,
+          readInt(payload, [
+            'unreadNotificationCount',
+            'unreadNotifications',
+            'unread_notifications',
+            'unread_notification_count',
+            'notificationUnreadCount',
+          ]) ??
+          readInt(statsMap, [
+            'unreadNotificationCount',
+            'unreadNotifications',
+            'unread_notifications',
+            'unread_notification_count',
+          ]) ??
+          [
+            ...notifications,
+            ...effectiveReminders,
+          ].where((item) => item.isUnread).length,
       pendingForms:
           readInt(payload, ['pendingForms', 'formsDue', 'forms_due']) ??
           readInt(statsMap, ['pendingForms', 'formsDue', 'forms_due']) ??
@@ -1104,7 +1242,9 @@ class ProgressModel {
           final mood = item['mood'];
           final score = mood is int
               ? mood
-              : (mood is num ? mood.round() : int.tryParse(mood?.toString() ?? ''));
+              : (mood is num
+                    ? mood.round()
+                    : int.tryParse(mood?.toString() ?? ''));
           if (score == null) continue;
           final date = item['date']?.toString();
           if (date != null && date.isNotEmpty) {

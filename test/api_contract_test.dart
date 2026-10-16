@@ -237,6 +237,53 @@ void main() {
     });
   });
 
+  group('Patient Appointment API Contract', () {
+    test('list, actions, and insurance update match the API', () async {
+      final requests = <RequestOptions>[];
+      final dio = Dio(BaseOptions(baseUrl: 'https://altrixs.com'));
+      dio.interceptors.add(InterceptorsWrapper(onRequest: (options, handler) {
+        requests.add(options);
+        return handler.resolve(Response(
+          requestOptions: options,
+          statusCode: 200,
+          data: {
+            'success': true,
+            'data': {
+              'appointment': {'id': 'appt-1', 'status': 'pending'},
+              'appointments': <Map<String, dynamic>>[],
+              'client': {'id': 'patient-1'},
+            },
+          },
+        ));
+      }));
+      final source = PatientRemoteDataSource(dio);
+
+      await source.getAppointments();
+      await source.cancelAppointment('appt-1', reason: 'Schedule conflict');
+      await source.rescheduleAppointment(
+        id: 'appt-1',
+        date: '2026-10-28',
+        startTime: '14:00',
+        note: 'Need afternoon time slot',
+      );
+      await source.updateProfile(
+        insurancePayer: 'Maryland Medicaid HealthChoice',
+        insuranceMemberId: 'MD-998877',
+        insuranceGroupNumber: 'GRP-MD-01',
+      );
+
+      expect(requests[0].queryParameters['includePast'], isTrue);
+      expect(requests[0].queryParameters['includeCancelled'], isTrue);
+      expect(requests[1].method, 'POST');
+      expect(requests[1].data['reason'], 'Schedule conflict');
+      expect(requests[2].method, 'POST');
+      expect(requests[3].method, 'PATCH');
+      expect(requests[3].data['insurancePayer'], 'Maryland Medicaid HealthChoice');
+      expect(requests[3].data['insuranceMemberId'], 'MD-998877');
+      expect(requests[3].data['insuranceGroupNumber'], 'GRP-MD-01');
+    });
+  });
+
   group('Patient Check-in API Contract', () {
     test('createCheckIn sends expected json payload with mood, stress, sleep, journal', () async {
       RequestOptions? capturedOptions;
@@ -439,4 +486,3 @@ void main() {
     });
   });
 }
-

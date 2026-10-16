@@ -82,7 +82,7 @@ void main() {
         expect(find.text(other.label), findsNothing);
       }
       expect(
-        find.byTooltip('Open Altrixs help chat. Drag to move.'),
+        find.text('Aria'),
         findsNothing,
       );
       expect(
@@ -96,7 +96,7 @@ void main() {
       await tester.pageBack();
       await tester.pumpAndSettle();
       expect(
-        find.byTooltip('Open Altrixs help chat. Drag to move.'),
+        find.text('Aria'),
         findsOneWidget,
       );
     }

@@ -82,6 +82,19 @@ class _AccountPortalScreenState extends ConsumerState<AccountPortalScreen> {
     );
   }
 
+  Future<void> _editInsurance(InsurancePlan? plan) async {
+    final updated = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _InsuranceEditorDialog(plan: plan),
+    );
+    if (updated != true || !mounted) return;
+    ref.invalidate(accountPortalProvider);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Insurance details updated.')),
+    );
+  }
+
   Future<void> _openDocument(AccountDocument document) async {
     final uri = Uri.tryParse(resolveMediaUrl(document.url));
     if (uri == null ||
@@ -222,10 +235,7 @@ class _AccountPortalScreenState extends ConsumerState<AccountPortalScreen> {
     _PortalCard(
       title: 'Primary Insurance',
       action: TextButton(
-        onPressed: () => _contact(
-          'Update insurance',
-          'I would like to update my primary insurance. Please let me know how to submit my policy details.',
-        ),
+        onPressed: () => _editInsurance(data?.primary),
         child: const Text('Update'),
       ),
       child: data?.primary != null
@@ -735,6 +745,130 @@ String _date(String value) {
 String _status(String value) => value.isEmpty
     ? 'Not provided'
     : '${value[0].toUpperCase()}${value.substring(1).replaceAll('_', ' ')}';
+
+class _InsuranceEditorDialog extends ConsumerStatefulWidget {
+  const _InsuranceEditorDialog({this.plan});
+  final InsurancePlan? plan;
+
+  @override
+  ConsumerState<_InsuranceEditorDialog> createState() =>
+      _InsuranceEditorDialogState();
+}
+
+class _InsuranceEditorDialogState
+    extends ConsumerState<_InsuranceEditorDialog> {
+  late final TextEditingController _payer;
+  late final TextEditingController _memberId;
+  late final TextEditingController _groupNumber;
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _payer = TextEditingController(text: widget.plan?.carrier ?? '');
+    _memberId = TextEditingController(text: widget.plan?.memberId ?? '');
+    _groupNumber = TextEditingController(
+      text: widget.plan?.groupNumber ?? '',
+    );
+  }
+
+  @override
+  void dispose() {
+    _payer.dispose();
+    _memberId.dispose();
+    _groupNumber.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (_saving) return;
+    if (_payer.text.trim().isEmpty || _memberId.text.trim().isEmpty) {
+      setState(() => _error = 'Enter the payer/plan and member ID.');
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await ref.read(patientRepositoryProvider).updateProfile(
+        insurancePayer: _payer.text,
+        insuranceMemberId: _memberId.text,
+        insuranceGroupNumber: _groupNumber.text,
+      );
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _error = 'Could not update insurance details. Please try again.';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => PopScope(
+    canPop: !_saving,
+    child: AlertDialog(
+      title: const Text('Update insurance'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _payer,
+              enabled: !_saving,
+              textCapitalization: TextCapitalization.words,
+              decoration: const InputDecoration(
+                labelText: 'Payer / plan',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _memberId,
+              enabled: !_saving,
+              decoration: const InputDecoration(
+                labelText: 'Member ID',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _groupNumber,
+              enabled: !_saving,
+              decoration: const InputDecoration(
+                labelText: 'Group number',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(
+                  _error!,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _saving ? null : () => Navigator.of(context).pop(false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _saving ? null : _save,
+          child: Text(_saving ? 'Saving…' : 'Save'),
+        ),
+      ],
+    ),
+  );
+}
 
 class _InsuranceDetails extends StatelessWidget {
   const _InsuranceDetails({required this.plan});

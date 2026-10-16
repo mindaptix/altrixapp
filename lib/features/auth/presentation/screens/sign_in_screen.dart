@@ -197,10 +197,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
 
   void _showForgotPasswordSheet() {
     final emailController = TextEditingController(text: _emailController.text);
-    final tokenController = TextEditingController();
-    final newPasswordController = TextEditingController();
-    var hasToken = false;
     var isSending = false;
+    var instructionsSent = false;
 
     showModalBottomSheet<void>(
       context: context,
@@ -234,7 +232,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 ),
                 const SizedBox(height: 18),
                 Text(
-                  hasToken ? 'Reset your password' : 'Forgot password',
+                  instructionsSent ? 'Check your email' : 'Forgot password',
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
@@ -243,16 +241,17 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  hasToken
-                      ? 'Enter the reset token sent to your email and your new password.'
-                      : 'Enter your email address and we will send you a password reset link.',
+                  instructionsSent
+                      ? 'If an active patient account exists for this email, we sent a secure password reset link. Open the link, create your new password on the Altrixs website, then return here to sign in.'
+                      : 'Enter your patient email address and we will send you a secure password reset link.',
                   style: const TextStyle(
                     fontSize: 13.5,
                     color: AppColors.textSecondary,
+                    height: 1.4,
                   ),
                 ),
                 const SizedBox(height: 18),
-                if (!hasToken) ...[
+                if (!instructionsSent) ...[
                   AppTextField(
                     label: 'Email',
                     controller: emailController,
@@ -261,97 +260,67 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                   ),
                   const SizedBox(height: 18),
                   PrimaryButton(
-                    label: 'Send reset instructions',
+                    label: 'Send reset link',
                     loading: isSending,
                     onPressed: () async {
                       final email = emailController.text.trim();
-                      if (email.isEmpty) return;
+                      if (email.isEmpty || !email.contains('@')) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Enter a valid email address.'),
+                          ),
+                        );
+                        return;
+                      }
                       setSheetState(() => isSending = true);
                       final ok = await ref
                           .read(authProvider.notifier)
                           .forgotPassword(email: email);
-                      setSheetState(() => isSending = false);
                       if (!context.mounted) return;
-                      if (ok) {
-                        setSheetState(() => hasToken = true);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Reset instructions sent! Check your inbox.',
-                            ),
-                          ),
-                        );
-                      } else {
-                        final err = ref.read(authProvider).error;
+                      setSheetState(() {
+                        isSending = false;
+                        instructionsSent = ok;
+                      });
+                      if (!ok) {
+                        final error = ref.read(authProvider).error;
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
-                              err ?? 'Could not send reset instructions',
+                              error ?? 'Could not send reset instructions',
                             ),
                           ),
                         );
                       }
                     },
-                  ),
-                  const SizedBox(height: 10),
-                  Center(
-                    child: TextButton(
-                      onPressed: () => setSheetState(() => hasToken = true),
-                      child: const Text('Already have a reset token?'),
-                    ),
                   ),
                 ] else ...[
-                  AppTextField(
-                    label: 'Reset token',
-                    controller: tokenController,
-                    hint: 'Paste token from email',
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryWash,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Text(
+                      emailController.text.trim(),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 14),
-                  PasswordField(
-                    label: 'New password',
-                    controller: newPasswordController,
-                    hint: '••••••••••••',
-                  ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 16),
                   PrimaryButton(
-                    label: 'Reset password',
-                    loading: isSending,
-                    onPressed: () async {
-                      final token = tokenController.text.trim();
-                      final password = newPasswordController.text;
-                      if (token.isEmpty || password.isEmpty) return;
-                      setSheetState(() => isSending = true);
-                      final ok = await ref
-                          .read(authProvider.notifier)
-                          .resetPassword(token: token, password: password);
-                      setSheetState(() => isSending = false);
-                      if (!context.mounted) return;
-                      if (ok) {
-                        Navigator.of(sheetContext).pop();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Password reset successful. You can now sign in.',
-                            ),
-                          ),
-                        );
-                      } else {
-                        final err = ref.read(authProvider).error;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              err ?? 'Could not reset password',
-                            ),
-                          ),
-                        );
-                      }
-                    },
+                    label: 'Back to sign in',
+                    onPressed: () => Navigator.of(sheetContext).pop(),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   Center(
                     child: TextButton(
-                      onPressed: () => setSheetState(() => hasToken = false),
-                      child: const Text('Back to request email'),
+                      onPressed: () =>
+                          setSheetState(() => instructionsSent = false),
+                      child: const Text('Use a different email'),
                     ),
                   ),
                 ],

@@ -9,7 +9,6 @@ import '../../../../core/network/api_exception.dart';
 import '../../../../core/network/api_response.dart';
 import '../models/medication_model.dart';
 import '../models/patient_models.dart';
-import '../utils/appointment_utils.dart';
 
 class PatientRemoteDataSource {
   const PatientRemoteDataSource(this._dio);
@@ -66,6 +65,9 @@ class PatientRemoteDataSource {
     String? postalCode,
     String? emergencyContactName,
     String? emergencyContactPhone,
+    String? insurancePayer,
+    String? insuranceMemberId,
+    String? insuranceGroupNumber,
   }) async {
     final data = await _request(
       () => _dio.patch<Map<String, dynamic>>(
@@ -86,6 +88,11 @@ class PatientRemoteDataSource {
             'emergencyContactName': emergencyContactName,
           if (emergencyContactPhone != null && emergencyContactPhone.isNotEmpty)
             'emergencyContactPhone': emergencyContactPhone,
+          if (insurancePayer != null) 'insurancePayer': insurancePayer.trim(),
+          if (insuranceMemberId != null)
+            'insuranceMemberId': insuranceMemberId.trim(),
+          if (insuranceGroupNumber != null)
+            'insuranceGroupNumber': insuranceGroupNumber.trim(),
         },
       ),
     );
@@ -99,9 +106,56 @@ class PatientRemoteDataSource {
     return DashboardModel.fromJson(data);
   }
 
+  Future<PatientNotificationPage> getNotifications({
+    int page = 1,
+    int limit = 50,
+    bool unreadOnly = false,
+    String? type,
+  }) async {
+    final data = await _request(
+      () => _dio.get<Map<String, dynamic>>(
+        ApiEndpoints.patientNotifications,
+        queryParameters: {
+          'page': page,
+          'limit': limit,
+          if (unreadOnly) 'unreadOnly': true,
+          if (type?.trim().isNotEmpty == true) 'type': type!.trim(),
+        },
+      ),
+    );
+    return PatientNotificationPage.fromJson(data);
+  }
+
+  Future<void> markNotificationRead(String id) async {
+    await _request(
+      () => _dio.patch<Map<String, dynamic>>(
+        ApiEndpoints.patientNotificationRead(id),
+      ),
+    );
+  }
+
+  Future<void> markAllNotificationsRead() async {
+    await _request(
+      () => _dio.post<Map<String, dynamic>>(
+        ApiEndpoints.patientNotificationsReadAll,
+      ),
+    );
+  }
+
+  Future<void> deleteNotification(String id) async {
+    await _request(
+      () => _dio.delete<Map<String, dynamic>>(
+        ApiEndpoints.patientNotification(id),
+      ),
+    );
+  }
+
   Future<List<AppointmentModel>> getAppointments() async {
     final data = await _request(
-      () => _dio.get<Map<String, dynamic>>(ApiEndpoints.patientAppointments),
+      () => _dio.get<Map<String, dynamic>>(
+        ApiEndpoints.patientAppointments,
+        queryParameters: const {'includePast': true, 'includeCancelled': true},
+      ),
     );
 
     final rootData = data['data'];
@@ -110,12 +164,13 @@ class PatientRemoteDataSource {
       items = asJsonMapList(rootData);
     } else {
       final payload = unwrapApiPayload(data);
-      items = extractListFromPayload(payload, keys: const ['appointments', 'items']);
+      items = extractListFromPayload(
+        payload,
+        keys: const ['appointments', 'items'],
+      );
     }
 
-    return sortUpcomingAppointments(
-      items.map(AppointmentModel.fromJson).toList(),
-    );
+    return items.map(AppointmentModel.fromJson).toList();
   }
 
   Future<AppointmentModel> getAppointment(String id) async {
@@ -159,11 +214,14 @@ class PatientRemoteDataSource {
     return AppointmentModel.fromJson(payload);
   }
 
-  Future<AppointmentModel> cancelAppointment(String id) async {
+  Future<AppointmentModel> cancelAppointment(
+    String id, {
+    String? reason,
+  }) async {
     final data = await _request(
-      () => _dio.patch<Map<String, dynamic>>(
+      () => _dio.post<Map<String, dynamic>>(
         ApiEndpoints.patientAppointmentCancel(id),
-        data: const {},
+        data: {if (reason?.trim().isNotEmpty == true) 'reason': reason!.trim()},
       ),
     );
     final payload = unwrapApiPayload(data);
@@ -182,7 +240,7 @@ class PatientRemoteDataSource {
     String? note,
   }) async {
     final data = await _request(
-      () => _dio.patch<Map<String, dynamic>>(
+      () => _dio.post<Map<String, dynamic>>(
         ApiEndpoints.patientAppointmentReschedule(id),
         data: {
           'date': date,
@@ -205,9 +263,10 @@ class PatientRemoteDataSource {
       () => _dio.get<Map<String, dynamic>>(ApiEndpoints.patientDoctors),
     );
     final payload = unwrapApiPayload(data);
-    return extractListFromPayload(payload, keys: const ['doctors', 'items'])
-        .map(DoctorModel.fromJson)
-        .toList();
+    return extractListFromPayload(
+      payload,
+      keys: const ['doctors', 'items'],
+    ).map(DoctorModel.fromJson).toList();
   }
 
   Future<List<AvailabilitySlotModel>> getDoctorAvailability({
@@ -218,16 +277,14 @@ class PatientRemoteDataSource {
     final data = await _request(
       () => _dio.get<Map<String, dynamic>>(
         ApiEndpoints.patientDoctorAvailability(doctorId),
-        queryParameters: {
-          'from': ?from,
-          'days': ?days,
-        },
+        queryParameters: {'from': ?from, 'days': ?days},
       ),
     );
     final payload = unwrapApiPayload(data);
-    return extractListFromPayload(payload, keys: const ['slots', 'availability', 'items'])
-        .map(AvailabilitySlotModel.fromJson)
-        .toList();
+    return extractListFromPayload(
+      payload,
+      keys: const ['slots', 'availability', 'items'],
+    ).map(AvailabilitySlotModel.fromJson).toList();
   }
 
   Future<List<ConversationModel>> getConversations() async {
@@ -235,9 +292,10 @@ class PatientRemoteDataSource {
       () => _dio.get<Map<String, dynamic>>(ApiEndpoints.patientConversations),
     );
     final payload = unwrapApiPayload(data);
-    return extractListFromPayload(payload, keys: const ['conversations', 'items'])
-        .map(ConversationModel.fromJson)
-        .toList();
+    return extractListFromPayload(
+      payload,
+      keys: const ['conversations', 'items'],
+    ).map(ConversationModel.fromJson).toList();
   }
 
   Future<ConversationModel> createConversation({
@@ -247,10 +305,7 @@ class PatientRemoteDataSource {
     final data = await _request(
       () => _dio.post<Map<String, dynamic>>(
         ApiEndpoints.patientConversations,
-        data: {
-          'topic': topic,
-          'message': message,
-        },
+        data: {'topic': topic, 'message': message},
       ),
     );
     final payload = unwrapApiPayload(data);
@@ -304,7 +359,10 @@ class PatientRemoteDataSource {
         keys: const ['messages', 'items'],
       );
       final messages = rawMessages.map(MessageModel.fromJson).toList();
-      return (threadId: id.isNotEmpty ? id : resolvedThreadId, messages: messages);
+      return (
+        threadId: id.isNotEmpty ? id : resolvedThreadId,
+        messages: messages,
+      );
     } catch (_) {
       if (resolvedThreadId.isNotEmpty) {
         final messages = await getConversationMessages(
@@ -385,16 +443,14 @@ class PatientRemoteDataSource {
     final data = await _request(
       () => _dio.get<Map<String, dynamic>>(
         ApiEndpoints.patientConversationMessages(conversationId),
-        queryParameters: {
-          'page': page,
-          'limit': limit,
-        },
+        queryParameters: {'page': page, 'limit': limit},
       ),
     );
     final payload = unwrapApiPayload(data);
-    return extractListFromPayload(payload, keys: const ['messages', 'items'])
-        .map(MessageModel.fromJson)
-        .toList();
+    return extractListFromPayload(
+      payload,
+      keys: const ['messages', 'items'],
+    ).map(MessageModel.fromJson).toList();
   }
 
   Future<MessageModel> sendMessage({
@@ -433,10 +489,10 @@ class PatientRemoteDataSource {
   }) async {
     final queryParams = <String, dynamic>{
       'limit': limit,
-      if (skip != null) 'skip': skip,
+      'skip': ?skip,
       if (page != null && skip == null) 'page': page,
-      if (from != null) 'from': from,
-      if (to != null) 'to': to,
+      'from': ?from,
+      'to': ?to,
     };
     final data = await _request(
       () => _dio.get<Map<String, dynamic>>(
@@ -445,9 +501,10 @@ class PatientRemoteDataSource {
       ),
     );
     final payload = unwrapApiPayload(data);
-    return extractListFromPayload(payload, keys: const ['checkIns', 'check_ins', 'items'])
-        .map(CheckInModel.fromJson)
-        .toList();
+    return extractListFromPayload(
+      payload,
+      keys: const ['checkIns', 'check_ins', 'items'],
+    ).map(CheckInModel.fromJson).toList();
   }
 
   Future<CheckInModel> createCheckIn({
@@ -489,7 +546,9 @@ class PatientRemoteDataSource {
 
   Future<TelehealthSessionModel> getTelehealthSession(String joinToken) async {
     final data = await _request(
-      () => _dio.get<Map<String, dynamic>>(ApiEndpoints.telehealthJoin(joinToken)),
+      () => _dio.get<Map<String, dynamic>>(
+        ApiEndpoints.telehealthJoin(joinToken),
+      ),
     );
     return TelehealthSessionModel.fromJson(data);
   }
@@ -511,10 +570,7 @@ class PatientRemoteDataSource {
     final data = await _request(
       () => _dio.get<Map<String, dynamic>>(
         ApiEndpoints.telehealthSignal,
-        queryParameters: {
-          'token': joinToken,
-          'after': after,
-        },
+        queryParameters: {'token': joinToken, 'after': after},
       ),
     );
     return unwrapApiPayload(data);
@@ -546,16 +602,14 @@ class PatientRemoteDataSource {
     final data = await _request(
       () => _dio.get<Map<String, dynamic>>(
         ApiEndpoints.patientForms,
-        queryParameters: {
-          'page': page,
-          'limit': limit,
-        },
+        queryParameters: {'page': page, 'limit': limit},
       ),
     );
     final payload = unwrapApiPayload(data);
-    return extractListFromPayload(payload, keys: const ['forms', 'items'])
-        .map(PatientFormModel.fromJson)
-        .toList();
+    return extractListFromPayload(
+      payload,
+      keys: const ['forms', 'items'],
+    ).map(PatientFormModel.fromJson).toList();
   }
 
   Future<PatientFormModel> getForm(String id) async {
@@ -583,9 +637,7 @@ class PatientRemoteDataSource {
   /// DELETE /api/patient/me
   Future<void> deleteAccount() async {
     await _request(
-      () => _dio.delete<Map<String, dynamic>>(
-        ApiEndpoints.patientMe,
-      ),
+      () => _dio.delete<Map<String, dynamic>>(ApiEndpoints.patientMe),
     );
   }
 
@@ -603,9 +655,7 @@ class PatientRemoteDataSource {
       () => _dio.post<Map<String, dynamic>>(
         ApiEndpoints.patientAvatar,
         data: formData,
-        options: Options(
-          contentType: 'multipart/form-data',
-        ),
+        options: Options(contentType: 'multipart/form-data'),
       ),
     );
 
@@ -613,8 +663,8 @@ class PatientRemoteDataSource {
     final clientMap = payload['client'] is Map<String, dynamic>
         ? payload['client'] as Map<String, dynamic>
         : (payload['patient'] is Map<String, dynamic>
-            ? payload['patient'] as Map<String, dynamic>
-            : const <String, dynamic>{});
+              ? payload['patient'] as Map<String, dynamic>
+              : const <String, dynamic>{});
     final rawUrl = readString(
       payload,
       [
@@ -660,7 +710,10 @@ class PatientRemoteDataSource {
     if (rawList is List) {
       return rawList
           .whereType<Map>()
-          .map((e) => MedicationScheduleModel.fromJson(Map<String, dynamic>.from(e)))
+          .map(
+            (e) =>
+                MedicationScheduleModel.fromJson(Map<String, dynamic>.from(e)),
+          )
           .toList();
     }
     return const [];
@@ -724,9 +777,8 @@ class PatientRemoteDataSource {
       request.headers.set('Accept', 'text/event-stream');
       final response = await request.close();
 
-      await for (final line in response
-          .transform(utf8.decoder)
-          .transform(const LineSplitter())) {
+      await for (final line
+          in response.transform(utf8.decoder).transform(const LineSplitter())) {
         if (line.startsWith('data: ')) {
           final jsonStr = line.substring(6).trim();
           if (jsonStr.isNotEmpty) {

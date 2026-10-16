@@ -10,7 +10,6 @@ import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../patient/data/models/patient_models.dart';
 import '../../../patient/presentation/providers/patient_providers.dart';
 import '../providers/push_notification_provider.dart';
-import '../providers/notification_activity_provider.dart';
 
 /// Persisted notification preferences model.
 class NotificationPreferences {
@@ -51,7 +50,8 @@ class NotificationPreferences {
       pushEnabled: pushEnabled ?? this.pushEnabled,
       appointmentReminders: appointmentReminders ?? this.appointmentReminders,
       careTeamMessages: careTeamMessages ?? this.careTeamMessages,
-      dailyCheckInReminders: dailyCheckInReminders ?? this.dailyCheckInReminders,
+      dailyCheckInReminders:
+          dailyCheckInReminders ?? this.dailyCheckInReminders,
       medicationReminders: medicationReminders ?? this.medicationReminders,
       clinicAnnouncements: clinicAnnouncements ?? this.clinicAnnouncements,
       emailDigest: emailDigest ?? this.emailDigest,
@@ -99,17 +99,20 @@ class NotificationPreferences {
 
 final notificationPreferencesProvider =
     NotifierProvider<NotificationPreferencesNotifier, NotificationPreferences>(
-  NotificationPreferencesNotifier.new,
-);
+      NotificationPreferencesNotifier.new,
+    );
 
-class NotificationPreferencesNotifier extends Notifier<NotificationPreferences> {
+class NotificationPreferencesNotifier
+    extends Notifier<NotificationPreferences> {
   @override
   NotificationPreferences build() {
     final prefs = ref.watch(sharedPreferencesProvider);
     return NotificationPreferences.fromPrefs(prefs);
   }
 
-  Future<void> update(NotificationPreferences Function(NotificationPreferences current) fn) async {
+  Future<void> update(
+    NotificationPreferences Function(NotificationPreferences current) fn,
+  ) async {
     final updated = fn(state);
     state = updated;
     final prefs = ref.read(sharedPreferencesProvider);
@@ -122,14 +125,14 @@ class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
 
   @override
-  ConsumerState<NotificationsScreen> createState() => _NotificationsScreenState();
+  ConsumerState<NotificationsScreen> createState() =>
+      _NotificationsScreenState();
 }
 
 class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
   String _selectedFilter = 'All';
-
 
   @override
   void initState() {
@@ -146,7 +149,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
   @override
   Widget build(BuildContext context) {
     final responsive = context.responsive;
-    final dashboardAsync = ref.watch(dashboardProvider);
+    final notificationsAsync = ref.watch(patientNotificationsProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -158,7 +161,10 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
           indicatorWeight: 3,
           labelColor: AppColors.primary,
           unselectedLabelColor: AppColors.textSecondary,
-          labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5),
+          labelStyle: const TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 14.5,
+          ),
           tabs: const [
             Tab(text: 'Alerts & Activity'),
             Tab(text: 'Preferences'),
@@ -169,7 +175,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
         child: TabBarView(
           controller: _tabController,
           children: [
-            _buildAlertsTab(responsive, dashboardAsync),
+            _buildAlertsTab(responsive, notificationsAsync),
             _buildPreferencesTab(responsive),
           ],
         ),
@@ -179,30 +185,24 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
 
   Widget _buildAlertsTab(
     Responsive responsive,
-    AsyncValue<DashboardModel> dashboardAsync,
+    AsyncValue<PatientNotificationPage> notificationsAsync,
   ) {
-    final readItemKeys = ref.watch(readNotificationKeysProvider);
-    return dashboardAsync.when(
+    return notificationsAsync.when(
       loading: () => const InlineLoadingCard(label: 'Loading notifications...'),
       error: (error, _) => Padding(
         padding: responsive.pagePadding,
         child: InlineErrorCard(
           message: friendlyErrorMessage(error),
-          onRetry: () => ref.invalidate(dashboardProvider),
+          onRetry: () => ref.invalidate(patientNotificationsProvider),
         ),
       ),
-      data: (dashboard) {
-        final notifications = dashboard.notifications;
-        final reminders = dashboard.reminders;
-        final allItems = <DashboardItem>[...notifications, ...reminders];
+      data: (page) {
+        final allItems = page.notifications;
 
         final filteredItems = allItems.where((item) {
-          final isLocallyRead = readItemKeys.contains(notificationItemKey(item));
-          final isEffectiveUnread = item.isUnread && !isLocallyRead;
-
           switch (_selectedFilter) {
             case 'Unread':
-              return isEffectiveUnread;
+              return !item.isRead;
             case 'Care Team':
               return item.title.toLowerCase().contains('care') ||
                   item.title.toLowerCase().contains('team') ||
@@ -220,9 +220,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
           }
         }).toList();
 
-        final unreadCount = allItems.where((item) {
-          return item.isUnread && !readItemKeys.contains(notificationItemKey(item));
-        }).length;
+        final unreadCount = page.unreadCount;
 
         return ResponsiveCenter(
           child: ListView(
@@ -264,20 +262,37 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
                   ),
                   if (unreadCount > 0)
                     TextButton.icon(
-                      onPressed: () {
-                        ref.read(readNotificationKeysProvider.notifier).markAllRead(allItems);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('All notifications marked as read'),
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
+                      onPressed: () async {
+                        try {
+                          await ref
+                              .read(patientRepositoryProvider)
+                              .markAllNotificationsRead();
+                          ref.invalidate(patientNotificationsProvider);
+                          ref.invalidate(dashboardProvider);
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('All notifications marked as read'),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        } catch (error) {
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(friendlyErrorMessage(error)),
+                            ),
+                          );
+                        }
                       },
                       icon: const Icon(Icons.done_all_rounded, size: 17),
                       label: const Text('Mark all read'),
                       style: TextButton.styleFrom(
                         foregroundColor: AppColors.primary,
-                        textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                        textStyle: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                 ],
@@ -288,24 +303,33 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
-                  children: ['All', 'Unread', 'Care Team', 'Appointments'].map((filter) {
+                  children: ['All', 'Unread', 'Care Team', 'Appointments'].map((
+                    filter,
+                  ) {
                     final isSelected = _selectedFilter == filter;
                     return Padding(
                       padding: EdgeInsets.only(right: responsive.rz(8)),
                       child: FilterChip(
                         label: Text(filter),
                         selected: isSelected,
-                        onSelected: (_) => setState(() => _selectedFilter = filter),
+                        onSelected: (_) =>
+                            setState(() => _selectedFilter = filter),
                         selectedColor: AppColors.primaryMuted,
                         checkmarkColor: AppColors.primary,
                         labelStyle: TextStyle(
-                          color: isSelected ? AppColors.primary : AppColors.textSecondary,
-                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                          color: isSelected
+                              ? AppColors.primary
+                              : AppColors.textSecondary,
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
                           fontSize: 13,
                         ),
                         backgroundColor: AppColors.surface,
                         side: BorderSide(
-                          color: isSelected ? AppColors.primary : AppColors.border,
+                          color: isSelected
+                              ? AppColors.primary
+                              : AppColors.border,
                         ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
@@ -327,15 +351,58 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
                 )
               else
                 ...filteredItems.map((item) {
-                  final isRead = !item.isUnread || readItemKeys.contains(notificationItemKey(item));
-                  return _NotificationItemCard(
-                    item: item,
-                    isRead: isRead,
-                    onTap: () {
-                      if (!isRead) {
-                        ref.read(readNotificationKeysProvider.notifier).markRead(item);
+                  return Dismissible(
+                    key: ValueKey('notification-${item.id}'),
+                    direction: DismissDirection.endToStart,
+                    background: Container(
+                      margin: EdgeInsets.only(bottom: responsive.rz(10)),
+                      padding: EdgeInsets.only(right: responsive.rz(20)),
+                      alignment: Alignment.centerRight,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDC2626),
+                        borderRadius: BorderRadius.circular(responsive.rz(18)),
+                      ),
+                      child: const Icon(
+                        Icons.delete_outline,
+                        color: Colors.white,
+                      ),
+                    ),
+                    onDismissed: (_) async {
+                      try {
+                        await ref
+                            .read(patientRepositoryProvider)
+                            .deleteNotification(item.id);
+                        ref.invalidate(patientNotificationsProvider);
+                        ref.invalidate(dashboardProvider);
+                      } catch (error) {
+                        ref.invalidate(patientNotificationsProvider);
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(friendlyErrorMessage(error))),
+                        );
                       }
                     },
+                    child: _NotificationItemCard(
+                      item: item,
+                      isRead: item.isRead,
+                      onTap: () async {
+                        if (item.isRead) return;
+                        try {
+                          await ref
+                              .read(patientRepositoryProvider)
+                              .markNotificationRead(item.id);
+                          ref.invalidate(patientNotificationsProvider);
+                          ref.invalidate(dashboardProvider);
+                        } catch (error) {
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(friendlyErrorMessage(error)),
+                            ),
+                          );
+                        }
+                      },
+                    ),
                   );
                 }),
             ],
@@ -421,9 +488,13 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
                   activeTrackColor: Colors.white,
                   onChanged: (val) async {
                     if (val) {
-                      await ref.read(pushNotificationServiceProvider).initialize();
+                      await ref
+                          .read(pushNotificationServiceProvider)
+                          .initialize();
                     }
-                    await notifier.update((curr) => curr.copyWith(pushEnabled: val));
+                    await notifier.update(
+                      (curr) => curr.copyWith(pushEnabled: val),
+                    );
                   },
                 ),
               ],
@@ -455,7 +526,8 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
                 icon: Icons.chat_bubble_outline_rounded,
                 iconColor: AppColors.primary,
                 title: 'Care Team Messages',
-                subtitle: 'Instant notices when clinicians send secure chat updates',
+                subtitle:
+                    'Instant notices when clinicians send secure chat updates',
                 value: prefs.careTeamMessages,
                 enabled: prefs.pushEnabled,
                 onChanged: (val) => notifier.update(
@@ -467,7 +539,8 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
                 icon: Icons.sentiment_satisfied_alt_rounded,
                 iconColor: AppColors.mood5,
                 title: 'Daily Wellness Check-in',
-                subtitle: 'Gentle reminder to log mood, stress, and sleep scores',
+                subtitle:
+                    'Gentle reminder to log mood, stress, and sleep scores',
                 value: prefs.dailyCheckInReminders,
                 enabled: prefs.pushEnabled,
                 onChanged: (val) => notifier.update(
@@ -504,9 +577,8 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
                 title: 'Email Summaries',
                 subtitle: 'Weekly progress reports sent to your email',
                 value: prefs.emailDigest,
-                onChanged: (val) => notifier.update(
-                  (curr) => curr.copyWith(emailDigest: val),
-                ),
+                onChanged: (val) =>
+                    notifier.update((curr) => curr.copyWith(emailDigest: val)),
               ),
               const Divider(height: 1),
               _PreferenceSwitchTile(
@@ -515,9 +587,8 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
                 title: 'Urgent SMS Notices',
                 subtitle: 'Emergency schedule changes & immediate visit links',
                 value: prefs.smsAlerts,
-                onChanged: (val) => notifier.update(
-                  (curr) => curr.copyWith(smsAlerts: val),
-                ),
+                onChanged: (val) =>
+                    notifier.update((curr) => curr.copyWith(smsAlerts: val)),
               ),
               const Divider(height: 1),
               _PreferenceSwitchTile(
@@ -546,7 +617,8 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
                 icon: Icons.bedtime_outlined,
                 iconColor: const Color(0xFF8B5CF6),
                 title: 'Do Not Disturb (10 PM – 7 AM)',
-                subtitle: 'All notifications muted except urgent care team calls',
+                subtitle:
+                    'All notifications muted except urgent care team calls',
                 value: prefs.quietHoursEnabled,
                 onChanged: (val) => notifier.update(
                   (curr) => curr.copyWith(quietHoursEnabled: val),
@@ -567,33 +639,35 @@ class _NotificationItemCard extends StatelessWidget {
     required this.onTap,
   });
 
-  final DashboardItem item;
+  final PatientNotificationModel item;
   final bool isRead;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final responsive = context.responsive;
-    final isAppt = item.title.toLowerCase().contains('appointment') ||
+    final isAppt =
+        item.title.toLowerCase().contains('appointment') ||
         item.body.toLowerCase().contains('visit');
-    final isMood = item.title.toLowerCase().contains('mood') ||
+    final isMood =
+        item.title.toLowerCase().contains('mood') ||
         item.body.toLowerCase().contains('check-in');
 
     final icon = isAppt
         ? Icons.calendar_today_rounded
         : isMood
-            ? Icons.mood_rounded
-            : Icons.notifications_rounded;
+        ? Icons.mood_rounded
+        : Icons.notifications_rounded;
     final iconColor = isAppt
         ? const Color(0xFF3B82F6)
         : isMood
-            ? AppColors.mood5
-            : AppColors.primary;
+        ? AppColors.mood5
+        : AppColors.primary;
     final iconBg = isAppt
         ? const Color(0xFFE8F4FF)
         : isMood
-            ? const Color(0xFFE8FBF0)
-            : AppColors.primaryWash;
+        ? const Color(0xFFE8FBF0)
+        : AppColors.primaryWash;
 
     return Padding(
       padding: EdgeInsets.only(bottom: responsive.rz(10)),
@@ -608,7 +682,9 @@ class _NotificationItemCard extends StatelessWidget {
               color: isRead ? AppColors.surface : AppColors.surface,
               borderRadius: BorderRadius.circular(responsive.rz(18)),
               border: Border.all(
-                color: isRead ? AppColors.border : AppColors.primary.withValues(alpha: 0.35),
+                color: isRead
+                    ? AppColors.border
+                    : AppColors.primary.withValues(alpha: 0.35),
                 width: isRead ? 1 : 1.5,
               ),
               boxShadow: [
@@ -642,10 +718,14 @@ class _NotificationItemCard extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Text(
-                              item.title.isNotEmpty ? item.title : 'Care Team Update',
+                              item.title.isNotEmpty
+                                  ? item.title
+                                  : 'Care Team Update',
                               style: TextStyle(
                                 fontSize: 14.5,
-                                fontWeight: isRead ? FontWeight.w600 : FontWeight.w800,
+                                fontWeight: isRead
+                                    ? FontWeight.w600
+                                    : FontWeight.w800,
                                 color: AppColors.textPrimary,
                               ),
                             ),
@@ -670,10 +750,10 @@ class _NotificationItemCard extends StatelessWidget {
                           height: 1.35,
                         ),
                       ),
-                      if (item.time.isNotEmpty) ...[
+                      if (item.createdAt.isNotEmpty) ...[
                         SizedBox(height: responsive.rz(6)),
                         Text(
-                          item.time,
+                          item.formattedTime,
                           style: TextStyle(
                             fontSize: 11.5,
                             color: AppColors.textTertiary,

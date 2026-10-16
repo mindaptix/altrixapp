@@ -63,6 +63,7 @@ class _InAppNotificationOverlayState
   void _onMessage(RemoteMessage message) {
     NotificationRouter.handleReceived(message.data);
     ref.invalidate(dashboardProvider);
+    ref.invalidate(patientNotificationsProvider);
     final title =
         message.notification?.title ??
         message.data['title'] as String? ??

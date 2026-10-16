@@ -50,9 +50,15 @@ void main() {
           ),
         ),
       );
-      expect(find.byType(FloatingActionButton), findsOneWidget);
-      await tester.tap(find.byType(FloatingActionButton));
+      expect(find.text('Aria'), findsOneWidget);
+      expect(find.text('AI'), findsOneWidget);
+      await tester.tap(find.text('Aria'));
       await tester.pumpAndSettle();
+      expect(find.text('Aria Wellness Companion'), findsOneWidget);
+      expect(find.text('Live AI'), findsOneWidget);
+      expect(find.text('QUICK PROMPTS'), findsOneWidget);
+      expect(find.text('Guide me through breathing'), findsOneWidget);
+      expect(find.widgetWithText(TextField, 'Message Aria…'), findsOneWidget);
       await tester.enterText(find.byType(TextField), 'Hello');
       await tester.runAsync(() async {
         await tester.tap(find.byTooltip('Send message'));
@@ -65,10 +71,10 @@ void main() {
       await tester.tap(find.text('Next'));
       await tester.pumpAndSettle();
       expect(find.text('Second screen'), findsOneWidget);
-      expect(find.byType(FloatingActionButton), findsNothing);
+      expect(find.text('Aria'), findsNothing);
       Navigator.of(tester.element(find.text('Second screen'))).pop();
       await tester.pumpAndSettle();
-      await tester.tap(find.byType(FloatingActionButton));
+      await tester.tap(find.text('Aria'));
       await tester.pumpAndSettle();
       expect(find.text('How can I help?'), findsOneWidget);
       expect(tester.takeException(), isNull);
