@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/responsive/responsive.dart';
 import '../../../../core/responsive/responsive_widgets.dart';
-import '../../../../theme/app_colors.dart';
 import '../../../../widgets/empty_state_card.dart';
 import '../../data/models/patient_models.dart';
 import '../providers/patient_providers.dart';
@@ -305,56 +304,6 @@ class _AppointmentEditorScreenState
                         ? null
                         : (value) => setState(() => _virtual = value),
                   ),
-                  if (_virtual || _requiresVideo) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF2D8CFF).withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: const Color(0xFF2D8CFF)
-                              .withValues(alpha: 0.28),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.videocam_rounded,
-                            color: Color(0xFF2D8CFF),
-                            size: 20,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'In-App Zoom Video Meeting',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: Color(0xFF2D8CFF),
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'Conducted directly inside the app with camera, mic, and live controls.',
-                                  style: TextStyle(
-                                    fontSize: 11.5,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
                 ],
                 const SizedBox(height: 16),
                 OutlinedButton.icon(

@@ -28,7 +28,8 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObserver {
+class _HomeScreenState extends ConsumerState<HomeScreen>
+    with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
@@ -147,8 +148,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                       onAvatarTap: widget.onNavigateToTab != null
                           ? () => widget.onNavigateToTab!(3)
                           : null,
-                      unreadNotifications:
-                          ref.watch(unreadNotificationCountProvider),
+                      unreadNotifications: ref.watch(
+                        unreadNotificationCountProvider,
+                      ),
                     ),
                     SizedBox(height: responsive.rz(22)),
                     appointmentsAsync.when(
@@ -338,15 +340,21 @@ class _Header extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    greetingText,
-                    style: responsiveTextStyle(
-                      context,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
-                      letterSpacing: -0.7,
-                      height: 1.1,
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      greetingText,
+                      maxLines: 1,
+                      softWrap: false,
+                      style: responsiveTextStyle(
+                        context,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                        letterSpacing: -0.7,
+                        height: 1.1,
+                      ),
                     ),
                   ),
                   SizedBox(height: responsive.rz(8)),

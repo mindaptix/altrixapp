@@ -334,23 +334,20 @@ class _AriaPanelHeader extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        'Aria Wellness Companion',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                        ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      'Aria Wellness Companion',
+                      maxLines: 1,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
-                    SizedBox(width: 7),
-                    _AriaLiveBadge(),
-                  ],
+                  ),
                 ),
                 SizedBox(height: 3),
                 Text(
@@ -368,29 +365,6 @@ class _AriaPanelHeader extends StatelessWidget {
             icon: const Icon(Icons.close_rounded, color: Color(0xFFC4B5FD)),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _AriaLiveBadge extends StatelessWidget {
-  const _AriaLiveBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0F766E).withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: const Text(
-        'Live AI',
-        style: TextStyle(
-          color: Color(0xFF5EEAD4),
-          fontSize: 9.5,
-          fontWeight: FontWeight.w800,
-        ),
       ),
     );
   }
@@ -435,24 +409,28 @@ class _AriaComposer extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 7,
-              runSpacing: 7,
-              children: [
-                for (final prompt in prompts)
-                  ActionChip(
-                    label: Text(prompt),
-                    labelStyle: const TextStyle(
-                      color: Color(0xFF334155),
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              child: Row(
+                children: [
+                  for (var index = 0; index < prompts.length; index++) ...[
+                    ActionChip(
+                      label: Text(prompts[index]),
+                      labelStyle: const TextStyle(
+                        color: Color(0xFF334155),
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      backgroundColor: const Color(0xFFF8FAFC),
+                      side: const BorderSide(color: Color(0xFFE2E8F0)),
+                      visualDensity: VisualDensity.compact,
+                      onPressed: sending ? null : () => onSend(prompts[index]),
                     ),
-                    backgroundColor: const Color(0xFFF8FAFC),
-                    side: const BorderSide(color: Color(0xFFE2E8F0)),
-                    visualDensity: VisualDensity.compact,
-                    onPressed: sending ? null : () => onSend(prompt),
-                  ),
-              ],
+                    if (index != prompts.length - 1) const SizedBox(width: 7),
+                  ],
+                ],
+              ),
             ),
             const SizedBox(height: 11),
             Row(
@@ -503,14 +481,6 @@ class _AriaComposer extends StatelessWidget {
                       : const Icon(Icons.send_rounded),
                 ),
               ],
-            ),
-            const SizedBox(height: 8),
-            const Center(
-              child: Text(
-                'Processed via AWS Bedrock under HIPAA BAA. PHI is never stored or trained on.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Color(0xFF94A3B8), fontSize: 9.5),
-              ),
             ),
           ],
         ),

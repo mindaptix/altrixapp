@@ -55,7 +55,7 @@ void main() {
       await tester.tap(find.text('Aria'));
       await tester.pumpAndSettle();
       expect(find.text('Aria Wellness Companion'), findsOneWidget);
-      expect(find.text('Live AI'), findsOneWidget);
+      expect(find.text('Live AI'), findsNothing);
       expect(find.text('QUICK PROMPTS'), findsOneWidget);
       expect(find.text('Guide me through breathing'), findsOneWidget);
       expect(find.widgetWithText(TextField, 'Message Aria…'), findsOneWidget);
