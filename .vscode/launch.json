@@ -5,6 +5,41 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "altrixapp (Flutter RMX3998 (wireless))",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "adb-GEPRBUYLO7UGAEXO-88gwx5 (2)._adb-tls-connect._tcp",
+      "toolArgs": [
+        "--device-timeout",
+        "10"
+      ]
+    },
+    {
+      "name": "altrix (Flutter RMX3998 (wireless))",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "adb-GEPRBUYLO7UGAEXO-88gwx5 (2)._adb-tls-connect._tcp",
+      "toolArgs": [
+        "--device-timeout",
+        "10"
+      ]
+    },
+    {
+      "name": "altrixapp (Flutter RMX3998)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "GEPRBUYLO7UGAEXO"
+    },
+    {
+      "name": "altrixapp",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart"
+    },
+    {
       "name": "altrix (Flutter RMX3998)",
       "request": "launch",
       "type": "dart",

@@ -1,13 +1,18 @@
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/responsive/responsive.dart';
+import '../../../../core/notifications/notification_router.dart';
 import '../../../../core/responsive/responsive_widgets.dart';
 import '../../../../theme/app_colors.dart';
 import '../../../../widgets/empty_state_card.dart';
 import '../../../patient/data/models/patient_models.dart';
 import '../../../patient/presentation/providers/patient_providers.dart';
 import '../providers/notification_preferences_provider.dart';
+import '../providers/notification_read_provider.dart';
 import '../providers/push_notification_provider.dart';
 
 /// Main Notifications Screen with Alerts Feed and Preference Settings.
@@ -23,6 +28,11 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
   String _selectedFilter = 'All';
+  final Set<String> _selectedNotificationIds = <String>{};
+  Set<String> _visibleNotificationIds = <String>{};
+  bool _isDeletingSelection = false;
+
+  bool get _isSelectionMode => _selectedNotificationIds.isNotEmpty;
 
   @override
   void initState() {
@@ -40,32 +50,64 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
   Widget build(BuildContext context) {
     final responsive = context.responsive;
     final notificationsAsync = ref.watch(patientNotificationsProvider);
+    final readState = ref.watch(notificationReadControllerProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Notifications'),
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: AppColors.primary,
-          indicatorWeight: 3,
-          labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.textSecondary,
-          labelStyle: const TextStyle(
-            fontWeight: FontWeight.w700,
-            fontSize: 14.5,
-          ),
-          tabs: const [
-            Tab(text: 'Alerts & Activity'),
-            Tab(text: 'Preferences'),
-          ],
+        leading: _isSelectionMode
+            ? IconButton(
+                tooltip: 'Close selection',
+                onPressed: _isDeletingSelection ? null : _clearSelection,
+                icon: const Icon(Icons.close_rounded),
+              )
+            : null,
+        title: Text(
+          _isSelectionMode
+              ? '${_selectedNotificationIds.length} selected'
+              : 'Notifications',
         ),
+        actions: _isSelectionMode
+            ? [
+                TextButton(
+                  onPressed: _isDeletingSelection ? null : _selectAllVisible,
+                  child: const Text('Select all'),
+                ),
+                IconButton(
+                  tooltip: 'Delete selected',
+                  onPressed: _isDeletingSelection ? null : _deleteSelected,
+                  icon: _isDeletingSelection
+                      ? const SizedBox.square(
+                          dimension: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.delete_outline_rounded),
+                ),
+              ]
+            : null,
+        bottom: _isSelectionMode
+            ? null
+            : TabBar(
+                controller: _tabController,
+                indicatorColor: AppColors.primary,
+                indicatorWeight: 3,
+                labelColor: AppColors.primary,
+                unselectedLabelColor: AppColors.textSecondary,
+                labelStyle: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14.5,
+                ),
+                tabs: const [
+                  Tab(text: 'Alerts & Activity'),
+                  Tab(text: 'Preferences'),
+                ],
+              ),
       ),
       body: SafeArea(
         child: TabBarView(
           controller: _tabController,
           children: [
-            _buildAlertsTab(responsive, notificationsAsync),
+            _buildAlertsTab(responsive, notificationsAsync, readState),
             _buildPreferencesTab(responsive),
           ],
         ),
@@ -76,6 +118,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
   Widget _buildAlertsTab(
     Responsive responsive,
     AsyncValue<PatientNotificationPage> notificationsAsync,
+    NotificationReadState readState,
   ) {
     return notificationsAsync.when(
       loading: () => const InlineLoadingCard(label: 'Loading notifications...'),
@@ -92,7 +135,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
         final filteredItems = allItems.where((item) {
           switch (_selectedFilter) {
             case 'Unread':
-              return !item.isRead;
+              return !_isEffectivelyRead(item, readState);
             case 'Care Team':
               return item.title.toLowerCase().contains('care') ||
                   item.title.toLowerCase().contains('team') ||
@@ -109,8 +152,15 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
               return true;
           }
         }).toList();
+        _visibleNotificationIds = filteredItems.map((item) => item.id).toSet();
 
-        final unreadCount = page.unreadCount;
+        final localReadCount = allItems
+            .where(
+              (item) =>
+                  !item.isRead && readState.locallyReadIds.contains(item.id),
+            )
+            .length;
+        final unreadCount = math.max(0, page.unreadCount - localReadCount);
 
         return ResponsiveCenter(
           child: ListView(
@@ -153,6 +203,13 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
                   if (unreadCount > 0)
                     TextButton.icon(
                       onPressed: () async {
+                        ref
+                            .read(notificationReadControllerProvider.notifier)
+                            .markAllLocally(
+                              allItems
+                                  .where((item) => !item.isRead)
+                                  .map((item) => item.id),
+                            );
                         try {
                           await ref
                               .read(patientRepositoryProvider)
@@ -241,9 +298,13 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
                 )
               else
                 ...filteredItems.map((item) {
+                  final isRead = _isEffectivelyRead(item, readState);
+                  final isSelected = _selectedNotificationIds.contains(item.id);
                   return Dismissible(
                     key: ValueKey('notification-${item.id}'),
-                    direction: DismissDirection.endToStart,
+                    direction: _isSelectionMode
+                        ? DismissDirection.none
+                        : DismissDirection.endToStart,
                     background: Container(
                       margin: EdgeInsets.only(bottom: responsive.rz(10)),
                       padding: EdgeInsets.only(right: responsive.rz(20)),
@@ -257,41 +318,36 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
                         color: Colors.white,
                       ),
                     ),
-                    onDismissed: (_) async {
+                    confirmDismiss: (_) async {
                       try {
                         await ref
                             .read(patientRepositoryProvider)
                             .deleteNotification(item.id);
-                        ref.invalidate(patientNotificationsProvider);
-                        ref.invalidate(dashboardProvider);
+                        return true;
                       } catch (error) {
-                        ref.invalidate(patientNotificationsProvider);
-                        if (!mounted) return;
+                        if (!mounted) return false;
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(friendlyErrorMessage(error))),
+                          SnackBar(
+                            content: Text(friendlyErrorMessage(error)),
+                            behavior: SnackBarBehavior.floating,
+                          ),
                         );
+                        return false;
                       }
+                    },
+                    onDismissed: (_) {
+                      ref.invalidate(patientNotificationsProvider);
+                      ref.invalidate(dashboardProvider);
                     },
                     child: _NotificationItemCard(
                       item: item,
-                      isRead: item.isRead,
-                      onTap: () async {
-                        if (item.isRead) return;
-                        try {
-                          await ref
-                              .read(patientRepositoryProvider)
-                              .markNotificationRead(item.id);
-                          ref.invalidate(patientNotificationsProvider);
-                          ref.invalidate(dashboardProvider);
-                        } catch (error) {
-                          if (!mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(friendlyErrorMessage(error)),
-                            ),
-                          );
-                        }
-                      },
+                      isRead: isRead,
+                      isSelected: isSelected,
+                      selectionMode: _isSelectionMode,
+                      onLongPress: () => _toggleSelection(item.id),
+                      onTap: () => _isSelectionMode
+                          ? _toggleSelection(item.id)
+                          : _handleNotificationTap(item),
                     ),
                   );
                 }),
@@ -300,6 +356,84 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
         );
       },
     );
+  }
+
+  void _toggleSelection(String id) {
+    setState(() {
+      if (!_selectedNotificationIds.add(id)) {
+        _selectedNotificationIds.remove(id);
+      }
+    });
+  }
+
+  void _clearSelection() {
+    setState(_selectedNotificationIds.clear);
+  }
+
+  void _selectAllVisible() {
+    setState(() {
+      if (_selectedNotificationIds.containsAll(_visibleNotificationIds)) {
+        _selectedNotificationIds.clear();
+      } else {
+        _selectedNotificationIds.addAll(_visibleNotificationIds);
+      }
+    });
+  }
+
+  Future<void> _deleteSelected() async {
+    if (_selectedNotificationIds.isEmpty || _isDeletingSelection) return;
+    final ids = Set<String>.from(_selectedNotificationIds);
+    setState(() => _isDeletingSelection = true);
+
+    var failed = 0;
+    await Future.wait(
+      ids.map((id) async {
+        try {
+          await ref.read(patientRepositoryProvider).deleteNotification(id);
+        } catch (_) {
+          failed += 1;
+        }
+      }),
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _isDeletingSelection = false;
+      _selectedNotificationIds.clear();
+    });
+    ref.invalidate(patientNotificationsProvider);
+    ref.invalidate(dashboardProvider);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          failed == 0
+              ? '${ids.length} ${ids.length == 1 ? 'notification' : 'notifications'} deleted'
+              : 'Deleted ${ids.length - failed}. $failed could not be deleted.',
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  bool _isEffectivelyRead(
+    PatientNotificationModel item,
+    NotificationReadState readState,
+  ) {
+    return item.isRead || readState.locallyReadIds.contains(item.id);
+  }
+
+  void _handleNotificationTap(PatientNotificationModel item) {
+    unawaited(
+      ref.read(notificationReadControllerProvider.notifier).markRead(item.id),
+    );
+
+    NotificationRouter.handleTap(<String, dynamic>{
+      ...item.data,
+      'notificationId': item.id,
+      'type': item.type,
+      'title': item.title,
+      'body': item.body,
+    });
   }
 
   Widget _buildPreferencesTab(Responsive responsive) {
@@ -526,12 +660,18 @@ class _NotificationItemCard extends StatelessWidget {
   const _NotificationItemCard({
     required this.item,
     required this.isRead,
+    required this.isSelected,
+    required this.selectionMode,
     required this.onTap,
+    required this.onLongPress,
   });
 
   final PatientNotificationModel item;
   final bool isRead;
+  final bool isSelected;
+  final bool selectionMode;
   final VoidCallback onTap;
+  final VoidCallback onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -565,6 +705,7 @@ class _NotificationItemCard extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
+          onLongPress: onLongPress,
           borderRadius: BorderRadius.circular(responsive.rz(18)),
           child: Ink(
             padding: EdgeInsets.all(responsive.rz(14)),
@@ -572,10 +713,12 @@ class _NotificationItemCard extends StatelessWidget {
               color: isRead ? AppColors.surface : AppColors.surface,
               borderRadius: BorderRadius.circular(responsive.rz(18)),
               border: Border.all(
-                color: isRead
+                color: isSelected
+                    ? AppColors.primary
+                    : isRead
                     ? AppColors.border
                     : AppColors.primary.withValues(alpha: 0.35),
-                width: isRead ? 1 : 1.5,
+                width: isSelected || !isRead ? 1.5 : 1,
               ),
               boxShadow: [
                 BoxShadow(
@@ -590,6 +733,15 @@ class _NotificationItemCard extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (selectionMode) ...[
+                  Checkbox(
+                    value: isSelected,
+                    onChanged: (_) => onTap(),
+                    activeColor: AppColors.primary,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  SizedBox(width: responsive.rz(4)),
+                ],
                 Container(
                   width: responsive.rz(42),
                   height: responsive.rz(42),

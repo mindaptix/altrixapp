@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,8 +7,16 @@ import '../widgets/chime_media_view.dart';
 import 'chime_video_theater_screen.dart';
 
 class TelehealthWaitingRoomScreen extends ConsumerStatefulWidget {
-  const TelehealthWaitingRoomScreen({super.key, required this.joinToken});
+  const TelehealthWaitingRoomScreen({
+    super.key,
+    required this.joinToken,
+    this.videoCallBuilder,
+  });
   final String joinToken;
+
+  @visibleForTesting
+  final Widget Function(Map<String, dynamic> chimeData, String doctorName)?
+  videoCallBuilder;
   @override
   ConsumerState<TelehealthWaitingRoomScreen> createState() =>
       _WaitingRoomState();
@@ -18,6 +27,7 @@ class _WaitingRoomState extends ConsumerState<TelehealthWaitingRoomScreen> {
   Map<String, dynamic>? _details;
   String? _error;
   bool _busy = false, _checkedIn = false;
+  String? _visibleSnackBarMessage;
   @override
   void initState() {
     super.initState();
@@ -31,6 +41,11 @@ class _WaitingRoomState extends ConsumerState<TelehealthWaitingRoomScreen> {
           .read(telehealthRepositoryProvider)
           .details(widget.joinToken);
       if (mounted) setState(() => _details = details);
+    } on TelehealthSessionEndedException {
+      if (context.mounted) {
+        setState(() => _error = 'Telehealth video has ended.');
+        _showErrorSnackBar('Telehealth video has ended.');
+      }
     } catch (_) {
       if (mounted) {
         setState(
@@ -51,14 +66,17 @@ class _WaitingRoomState extends ConsumerState<TelehealthWaitingRoomScreen> {
       if (join) {
         final data = await repo.join(widget.joinToken);
         await _media.currentState?.stop();
-        if (!mounted) return;
+        if (!mounted || !context.mounted) return;
+        final doctorName =
+            _details?['clinicianName']?.toString() ?? 'Your doctor';
         await Navigator.of(context).push(
           MaterialPageRoute<void>(
-            builder: (_) => ChimeVideoTheaterScreen(
-              chimeData: data,
-              doctorName:
-                  _details?['clinicianName']?.toString() ?? 'Your doctor',
-            ),
+            builder: (_) =>
+                widget.videoCallBuilder?.call(data, doctorName) ??
+                ChimeVideoTheaterScreen(
+                  chimeData: data,
+                  doctorName: doctorName,
+                ),
           ),
         );
         if (mounted) await _media.currentState?.restart();
@@ -66,17 +84,62 @@ class _WaitingRoomState extends ConsumerState<TelehealthWaitingRoomScreen> {
         await repo.here(widget.joinToken);
         if (mounted) setState(() => _checkedIn = true);
       }
-    } catch (_) {
-      if (mounted) {
-        setState(
-          () => _error = join
-              ? 'Unable to join. Your doctor may not have started the visit yet. Please retry.'
-              : 'Check-in failed. Please try again.',
-        );
+    } catch (error) {
+      if (context.mounted) {
+        if (join) {
+          _showErrorSnackBar(_joinErrorMessage(error));
+        } else {
+          setState(() => _error = 'Check-in failed. Please try again.');
+        }
       }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  String _joinErrorMessage(Object error) {
+    if (error is TelehealthSessionEndedException) {
+      return 'Session ended. You can no longer join this call.';
+    }
+    if (error is TelehealthNetworkException ||
+        (error is DioException && _isConnectionFailure(error))) {
+      return 'Please check your internet connection.';
+    }
+    if (error is FormatException &&
+        error.message == 'The visit is not ready. Please try again.') {
+      return 'The visit is not ready. Please try again.';
+    }
+    return 'Unable to join the call. Please try again.';
+  }
+
+  bool _isConnectionFailure(DioException error) {
+    return switch (error.type) {
+      DioExceptionType.connectionError ||
+      DioExceptionType.connectionTimeout ||
+      DioExceptionType.sendTimeout ||
+      DioExceptionType.receiveTimeout => true,
+      _ => false,
+    };
+  }
+
+  void _showErrorSnackBar(String message) {
+    if (!context.mounted || _visibleSnackBarMessage == message) return;
+    _visibleSnackBarMessage = message;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    final controller = messenger.showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: Colors.red.shade700,
+      ),
+    );
+    controller.closed.whenComplete(() {
+      if (_visibleSnackBarMessage == message) {
+        _visibleSnackBarMessage = null;
+      }
+    });
   }
 
   @override

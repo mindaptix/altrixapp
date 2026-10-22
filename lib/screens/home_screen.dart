@@ -2059,54 +2059,54 @@ class _DashboardSummaryCard extends StatelessWidget {
               ],
               if (dashboard.recommendedWellnessTool.isNotEmpty) ...[
                 SizedBox(height: responsive.rz(14)),
-                _DashboardStatusRow(
-                  icon: Icons.spa_rounded,
-                  iconColor: AppColors.primary,
-                  title: 'Recommended for you',
-                  subtitle: _titleCase(dashboard.recommendedWellnessTool),
-                ),
+                // _DashboardStatusRow(
+                //   icon: Icons.spa_rounded,
+                //   iconColor: AppColors.primary,
+                //   title: 'Recommended for you',
+                //   subtitle: _titleCase(dashboard.recommendedWellnessTool),
+                // ),
               ],
-              if (dashboard.safetyPlanAvailable) ...[
-                SizedBox(height: responsive.rz(10)),
-                _DashboardStatusRow(
-                  icon: Icons.shield_outlined,
-                  iconColor: dashboard.safetyPlanSigned
-                      ? AppColors.mood5
-                      : AppColors.mood3,
-                  title: 'Safety plan',
-                  subtitle: dashboard.safetyPlanSigned
-                      ? 'Signed and on file'
-                      : 'Available — review with your care team',
-                ),
-              ],
-              if (updates.isNotEmpty) ...[
-                SizedBox(height: responsive.rz(16)),
-                Text(
-                  'Updates & tasks',
-                  style: responsiveTextStyle(
-                    context,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                SizedBox(height: responsive.rz(10)),
-                for (final item in updates.take(3))
-                  Padding(
-                    padding: EdgeInsets.only(bottom: responsive.rz(10)),
-                    child: _DashboardUpdateTile(item: item),
-                  ),
-              ] else ...[
-                SizedBox(height: responsive.rz(14)),
-                Text(
-                  'No pending tasks or notifications right now.',
-                  style: responsiveTextStyle(
-                    context,
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
+              // if (dashboard.safetyPlanAvailable) ...[
+              //   SizedBox(height: responsive.rz(10)),
+              //   _DashboardStatusRow(
+              //     icon: Icons.shield_outlined,
+              //     iconColor: dashboard.safetyPlanSigned
+              //         ? AppColors.mood5
+              //         : AppColors.mood3,
+              //     title: 'Safety plan',
+              //     subtitle: dashboard.safetyPlanSigned
+              //         ? 'Signed and on file'
+              //         : 'Available — review with your care team',
+              //   ),
+              // ],
+              // if (updates.isNotEmpty) ...[
+              //   SizedBox(height: responsive.rz(16)),
+              //   Text(
+              //     'Updates & tasks',
+              //     style: responsiveTextStyle(
+              //       context,
+              //       fontSize: 13,
+              //       fontWeight: FontWeight.w700,
+              //       color: AppColors.textPrimary,
+              //     ),
+              //   ),
+              //   SizedBox(height: responsive.rz(10)),
+              //   for (final item in updates.take(3))
+              //     Padding(
+              //       padding: EdgeInsets.only(bottom: responsive.rz(10)),
+              //       child: _DashboardUpdateTile(item: item),
+              //     ),
+              // ] else ...[
+              //   SizedBox(height: responsive.rz(14)),
+              //   Text(
+              //     'No pending tasks or notifications right now.',
+              //     style: responsiveTextStyle(
+              //       context,
+              //       fontSize: 14,
+              //       color: AppColors.textSecondary,
+              //     ),
+              //   ),
+              // ],
             ],
           );
         },

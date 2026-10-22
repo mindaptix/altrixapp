@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +9,9 @@ import '../features/chatbot/presentation/widgets/floating_chatbot.dart';
 import '../features/auth/presentation/providers/auth_provider.dart';
 import '../core/responsive/responsive.dart';
 import '../features/patient/presentation/providers/patient_providers.dart';
+import '../features/notifications/presentation/providers/notification_read_provider.dart';
+import '../features/telehealth/data/repositories/telehealth_repository.dart';
+import '../features/telehealth/presentation/screens/telehealth_room_screen.dart';
 import '../theme/app_colors.dart';
 import '../widgets/exit_app_scope.dart';
 import '../widgets/in_app_notification_overlay.dart';
@@ -26,6 +31,7 @@ class MainShell extends ConsumerStatefulWidget {
 
 class _MainShellState extends ConsumerState<MainShell> {
   late int _index = widget.initialIndex;
+  bool _telehealthEndedSnackBarVisible = false;
 
   @override
   void initState() {
@@ -39,13 +45,68 @@ class _MainShellState extends ConsumerState<MainShell> {
       ref.invalidate(appointmentsProvider);
       ref.invalidate(dashboardProvider);
     });
+    NotificationRouter.registerNotificationReadHandler((notificationId) {
+      unawaited(
+        ref
+            .read(notificationReadControllerProvider.notifier)
+            .markRead(notificationId),
+      );
+    });
+    NotificationRouter.registerNotificationDataRefresher(() {
+      ref.invalidate(patientNotificationsProvider);
+      ref.invalidate(dashboardProvider);
+      ref.invalidate(conversationsProvider);
+    });
+    NotificationRouter.registerTelehealthTapHandler((joinToken) {
+      unawaited(_handleTelehealthNotificationTap(joinToken));
+    });
   }
 
   @override
   void dispose() {
     NotificationRouter.unregisterTabSwitcher();
     NotificationRouter.unregisterAppointmentRefresher();
+    NotificationRouter.unregisterNotificationReadHandler();
+    NotificationRouter.unregisterNotificationDataRefresher();
+    NotificationRouter.unregisterTelehealthTapHandler();
     super.dispose();
+  }
+
+  Future<void> _handleTelehealthNotificationTap(String joinToken) async {
+    try {
+      await ref.read(telehealthRepositoryProvider).details(joinToken);
+    } on TelehealthSessionEndedException {
+      if (!mounted || !context.mounted) return;
+      _showTelehealthEndedSnackBar();
+      return;
+    } catch (_) {
+      // The waiting room retains its existing retry and network-error handling.
+      // Only a confirmed ended session should block navigation here.
+    }
+
+    if (!mounted || !context.mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => TelehealthRoomScreen(joinToken: joinToken),
+        settings: const RouteSettings(name: '/telehealth/waiting-room'),
+      ),
+    );
+  }
+
+  void _showTelehealthEndedSnackBar() {
+    if (_telehealthEndedSnackBarVisible) return;
+    _telehealthEndedSnackBarVisible = true;
+    final controller = ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Telehealth video has ended.'),
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: Colors.red.shade700,
+      ),
+    );
+    controller.closed.whenComplete(() {
+      _telehealthEndedSnackBarVisible = false;
+    });
   }
 
   static const _destinations = [

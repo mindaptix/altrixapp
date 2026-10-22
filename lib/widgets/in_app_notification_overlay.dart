@@ -160,7 +160,11 @@ class _NotificationBanner extends StatelessWidget {
           child: InkWell(
             onTap: () {
               onDismiss();
-              NotificationRouter.handleTap(data.data);
+              NotificationRouter.handleTap(<String, dynamic>{
+                ...data.data,
+                'title': data.title,
+                'body': data.body,
+              });
             },
             borderRadius: BorderRadius.circular(18),
             child: Padding(

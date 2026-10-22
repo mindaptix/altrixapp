@@ -40,7 +40,9 @@ final dioProvider = Provider<Dio>((ref) {
     if (kDebugMode)
       LogInterceptor(
         request: true,
-        requestHeader: true,
+        // Authorization headers contain patient credentials and must never be
+        // printed, including in debug builds.
+        requestHeader: false,
         requestBody: true,
         responseHeader: false,
         responseBody: true,
