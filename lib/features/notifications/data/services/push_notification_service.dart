@@ -17,8 +17,8 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 class PushNotificationService implements PushNotifications {
   PushNotificationService({FirebaseMessaging? messaging})
-      // ignore: prefer_initializing_formals
-      : _messaging = messaging;
+    // ignore: prefer_initializing_formals
+    : _messaging = messaging;
 
   FirebaseMessaging? _messaging;
 
@@ -69,8 +69,7 @@ class PushNotificationService implements PushNotifications {
       _messaging ??= FirebaseMessaging.instance;
 
   @override
-  Stream<RemoteMessage> get onForegroundMessage =>
-      _foregroundController.stream;
+  Stream<RemoteMessage> get onForegroundMessage => _foregroundController.stream;
 
   @override
   Future<void> initialize() async {
@@ -96,13 +95,11 @@ class PushNotificationService implements PushNotifications {
     unawaited(
       _messagingInstance
           .getInitialMessage()
-          .timeout(
-            const Duration(seconds: 5),
-            onTimeout: () => null,
-          )
+          .timeout(const Duration(seconds: 5), onTimeout: () => null)
           .then((msg) {
-        if (msg != null) _handleOpenedMessage(msg);
-      }).catchError((_) {}),
+            if (msg != null) _handleOpenedMessage(msg);
+          })
+          .catchError((_) {}),
     );
   }
 
@@ -145,19 +142,16 @@ class PushNotificationService implements PushNotifications {
     final auth = _authToken;
     if (auth == null || auth.isEmpty) {
       // No auth token yet — token will be registered on next login
-      debugPrint('[FCM] saveDeviceToken: no auth token yet, will retry on login');
+      debugPrint(
+        '[FCM] saveDeviceToken: no auth token yet, will retry on login',
+      );
       return;
     }
     try {
       await _dioInstance.post(
         ApiEndpoints.patientDeviceToken,
-        data: {
-          'token': token,
-          'platform': Platform.isIOS ? 'ios' : 'android',
-        },
-        options: Options(
-          headers: {'Authorization': 'Bearer $auth'},
-        ),
+        data: {'token': token, 'platform': Platform.isIOS ? 'ios' : 'android'},
+        options: Options(headers: {'Authorization': 'Bearer $auth'}),
       );
       debugPrint('[FCM] ✅ Device token registered with backend');
     } catch (e) {
@@ -175,9 +169,7 @@ class PushNotificationService implements PushNotifications {
       await _dioInstance.delete(
         ApiEndpoints.patientDeviceToken,
         data: {'token': token},
-        options: Options(
-          headers: {'Authorization': 'Bearer $auth'},
-        ),
+        options: Options(headers: {'Authorization': 'Bearer $auth'}),
       );
     } catch (e) {
       debugPrint('[FCM] clearDeviceTokens error (non-critical): $e');
@@ -209,6 +201,12 @@ class PushNotificationService implements PushNotifications {
 
   void _handleOpenedMessage(RemoteMessage message) {
     debugPrint('[FCM] Opened from notification');
-    NotificationRouter.handleTap(message.data);
+    NotificationRouter.handleTap(<String, dynamic>{
+      ...message.data,
+      if ((message.notification?.title ?? '').isNotEmpty)
+        'title': message.notification!.title,
+      if ((message.notification?.body ?? '').isNotEmpty)
+        'body': message.notification!.body,
+    });
   }
 }

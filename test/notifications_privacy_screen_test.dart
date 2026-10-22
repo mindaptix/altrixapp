@@ -75,6 +75,21 @@ void main() {
       expect(find.text('All'), findsOneWidget);
       expect(find.text('Unread'), findsOneWidget);
 
+      // Long press enters multi-select mode.
+      await tester.longPress(find.text('Care Team Note'));
+      await tester.pumpAndSettle();
+      expect(find.text('1 selected'), findsOneWidget);
+      expect(find.text('Select all'), findsOneWidget);
+      expect(find.byTooltip('Delete selected'), findsOneWidget);
+
+      await tester.tap(find.text('Select all'));
+      await tester.pumpAndSettle();
+      expect(find.text('2 selected'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Close selection'));
+      await tester.pumpAndSettle();
+      expect(find.text('Notifications'), findsOneWidget);
+
       // Tap on Preferences tab
       await tester.tap(find.text('Preferences'));
       await tester.pumpAndSettle();

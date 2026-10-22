@@ -67,6 +67,89 @@ void main() {
     expect(chime['attendee']['AttendeeId'], 'patient');
     expect(adapter.requests.last.data, {'action': 'join'});
   });
+  test(
+    'join detects completed and expired sessions in response data',
+    () async {
+      adapter.body = {
+        'success': true,
+        'session': {'status': 'COMPLETED'},
+      };
+      await expectLater(
+        repo.join('ended-token'),
+        throwsA(isA<TelehealthSessionEndedException>()),
+      );
+
+      adapter
+        ..status = 400
+        ..body = {
+          'error': {
+            'details': {'code': 'SESSION_EXPIRED'},
+          },
+        };
+      await expectLater(
+        repo.join('expired-token'),
+        throwsA(isA<TelehealthSessionEndedException>()),
+      );
+    },
+  );
+  test('join maps verified HTTP 410 to a session-ended failure', () async {
+    adapter
+      ..status = 410
+      ..body = {'success': false, 'error': 'This session already ended'};
+
+    await expectLater(
+      repo.join('ended-token'),
+      throwsA(isA<TelehealthSessionEndedException>()),
+    );
+  });
+  test('details maps ended GET response to a session-ended failure', () async {
+    adapter
+      ..status = 410
+      ..body = {'success': false, 'error': 'This session already ended'};
+
+    await expectLater(
+      repo.details('ended-token'),
+      throwsA(isA<TelehealthSessionEndedException>()),
+    );
+    expect(adapter.requests.single.method, 'GET');
+  });
+  test(
+    'join maps connection errors without classifying them as ended',
+    () async {
+      repo.dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) => handler.reject(
+            DioException(
+              requestOptions: options,
+              type: DioExceptionType.connectionError,
+              message: 'offline',
+            ),
+          ),
+        ),
+      );
+
+      await expectLater(
+        repo.join('token'),
+        throwsA(isA<TelehealthNetworkException>()),
+      );
+    },
+  );
+  test('join keeps HTTP 500 as an unexpected API failure', () async {
+    adapter
+      ..status = 500
+      ..body = {'success': false, 'error': 'Internal server error'};
+
+    await expectLater(
+      repo.join('token'),
+      throwsA(
+        isA<DioException>().having(
+          (error) => error.response?.statusCode,
+          'status code',
+          500,
+        ),
+      ),
+    );
+  });
   test('failed check-in propagates failure', () async {
     adapter.status = 500;
     await expectLater(repo.here('token'), throwsA(isA<DioException>()));

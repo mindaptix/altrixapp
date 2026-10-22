@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/network/api_exception.dart';
 import '../features/auth/presentation/providers/auth_provider.dart';
 import '../features/auth/presentation/providers/auth_providers.dart';
 import '../features/auth/presentation/providers/auth_token_provider.dart';
@@ -192,11 +193,12 @@ class ConversationDetailScreenState
     final cached = ref.read(chatMessagesProvider(_threadId));
     if (cached.isEmpty) {
       // Only show loading indicator when there's nothing to show
-      if (mounted)
+      if (mounted) {
         setState(() {
           _isLoading = true;
           _error = null;
         });
+      }
     }
 
     try {
@@ -240,11 +242,21 @@ class ConversationDetailScreenState
         // Only show error if we have no cached messages
         final cached2 = ref.read(chatMessagesProvider(_threadId));
         setState(() {
-          if (cached2.isEmpty) _error = friendlyErrorMessage(err);
+          if (cached2.isEmpty) {
+            _error = _conversationError(err, innerErr);
+          }
           _isLoading = false;
         });
       }
     }
+  }
+
+  String _conversationError(Object primary, Object fallback) {
+    if ((primary is ApiException && primary.isNotFound) ||
+        (fallback is ApiException && fallback.isNotFound)) {
+      return 'This conversation is no longer available.';
+    }
+    return friendlyErrorMessage(primary);
   }
 
   void _connectSocket() async {
@@ -1161,8 +1173,6 @@ class _InputBarState extends State<_InputBar> {
   }
 
   bool get _hasText => widget.controller.text.trim().isNotEmpty;
-  bool get _focused => widget.focusNode.hasFocus;
-
   @override
   Widget build(BuildContext context) {
     return SafeArea(
