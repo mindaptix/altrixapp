@@ -1,4 +1,4 @@
-package com.example.altrix
+package com.altrixs.altrixs
 
 import io.flutter.embedding.android.FlutterActivity
 
